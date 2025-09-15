@@ -1,1 +1,1 @@
-console.log('Compare viewer loaded')
+console.log('Compare viewer działa!')
