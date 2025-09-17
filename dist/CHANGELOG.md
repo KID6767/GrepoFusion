@@ -1,19 +1,35 @@
-# Changelog – GrepoFusion
+# Changelog — GrepoFusion
 
-## [1.5.0-beta] – 2025-09-17
-- Motyw **Gold+Emerald Pirate**
-- Panel ustawień (motywy, pakiety grafik, Clean Mode)
-- Changelog overlay na każdym odświeżeniu
-- Wstępne podmiany ikon (statki/UI)
-- Przygotowanie pod **GrepoFusion Lab**
+## 1.5.0.1 — (dzisiejsze wydanie)
+- Aegis Theme Switcher (Classic / Remaster 2025 / Pirate / Dark).
+- Asset Map: podmiana grafik z konfigurowalnego RAW base (GitHub / CDN).
+- AutoBuild (Senat): działanie w tle, priorytety wg instrukcji.
+- Panel ⚙: motyw, RAW base, AutoBuild, reset.
+- Ekran powitalny + pop-up changelog.
+- Stabilizacja CSS okien i selektorów.
 
-## [1.4.5] – 2025-09-16
-- Kontrasty, nagłówki, zapis ustawień
-- Przygotowanie pełnej struktury `assets/`
+## 1.5.0 — Pirate Edition (fundament)
+- Zmiana kolorystyki na Gold+Emerald/Pirate.
+- Pierwsze podmiany ikon statków.
+- Panel ustawień wstępny.
 
-## [1.4.0 – 1.4.4] – 2025-09-15
-- Redesign 2025 (kolorystyka, panel – wczesny)
-- „Beige Killer”, Clean Mode – pierwsze wersje
+## 1.4.x — Kolorystyki i UI
+- Uspójnienie nagłówków, ramki, czcionki.
+- Pierwszy panel konfiguracji, zapisywanie ustawień (GM storage).
+- Próby podmian grafik (wczesne).
 
-## [1.3.x]
-- Pierwsze funkcje kolorystyczne i drobne integracje
+## 1.3.x — Integracja bazowa
+- Połączenie funkcjonalności w jeden skrypt.
+- Wstępne „clean mode” (ukrycie śladów innych dodatków).
+- Przygotowanie pod podmiany reportów/BBCode (GRCR).
+
+## 1.2 — Porządki i overlay
+- Naprawy stylów okien dialogowych.
+- Dodany overlay changelog.
+
+## 1.1 — Panel i hooki
+- Dodany pierwszy FAB ⚙ i panel opcji.
+- Zapis ustawień po stronie użytkownika.
+
+## 1.0 — Start
+- Inicjalny userscript: log, testowe style i podłączenia.

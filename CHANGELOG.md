@@ -1,17 +1,14 @@
 # Changelog
 
-## v1.5.0.1
-- Dodano Auto Build (gp-builder wpleciony w rdzeń).
-- Motyw Emerald+Gold: zielone tła, złote fonty.
-- Poprawki Senatu i Akademii (przygotowanie pod wektory).
-- Przywrócone działanie ukrytych funkcji (raporty, kalkulatory).
-- Konsola: logi debug `[GrepoFusion]`.
+## 1.5.0.1
+- Integracja **Aegis** (Theme Switcher + Dark Mode)
+- Dodany **AutoBuild (Senat)** – wersja beta
+- Podstawowy system podmiany assetów (Asset Map)
+- Panel ⚙ z wyborem motywów
+- Poprawki changeloga i README
 
-## v1.5.0
-- Pirate Edition start + pełna konfiguracja + Lab + changelog.
-
-## v1.4.x
-- Wersje testowe (emerald, gold, podstawowe UI).
-
-## v1.3.x
-- Podstawowy fusion pack, integracja raportów i kolorów.
+## 1.5.0
+- Pirate Edition
+- Pełna konfiguracja
+- GrepoFusion Lab (beta)
+- Changelog popup
