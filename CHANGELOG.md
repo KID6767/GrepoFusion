@@ -1,22 +1,19 @@
-# Changelog GrepoFusion
+# Changelog – GrepoFusion
 
-## 1.5.0-beta
-- Nowy motyw Gold+Emerald (Pirate Remaster)
-- Pełna konfiguracja przy starcie
-- Easter Bunny (ukryta opcja)
-- GrepoFusion Lab (beta)
-- Changelog wyświetlany przy każdym odświeżeniu
-- Ukrycie oznaczeń zewnętrznych dodatków
-- Podmiana grafik statków (wstępna)
+## [1.5.0-beta] – 2025-09-17
+- Motyw **Gold+Emerald Pirate**
+- Panel ustawień (motywy, pakiety grafik, Clean Mode)
+- Changelog overlay na każdym odświeżeniu
+- Wstępne podmiany ikon (statki/UI)
+- Przygotowanie pod **GrepoFusion Lab**
 
-## 1.4.x
-- 1.4.5: poprawki stabilności, test grafiki
-- 1.4.0: redesign/remaster – Gold+Emerald, changelog, konfiguracja
+## [1.4.5] – 2025-09-16
+- Kontrasty, nagłówki, zapis ustawień
+- Przygotowanie pełnej struktury `assets/`
 
-## 1.3.x
-- 1.3.2: panel kolorów, motyw gold, changelog
-- 1.3.0: pierwsze release publiczne
+## [1.4.0 – 1.4.4] – 2025-09-15
+- Redesign 2025 (kolorystyka, panel – wczesny)
+- „Beige Killer”, Clean Mode – pierwsze wersje
 
-## 1.0 – 1.2
-- Integracja podstawowych narzędzi
-- Przygotowanie pod dalsze wersje
+## [1.3.x]
+- Pierwsze funkcje kolorystyczne i drobne integracje
