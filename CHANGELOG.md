@@ -1,19 +1,17 @@
-# Changelog – GrepoFusion
+# Changelog
 
-## [1.5.0-beta] – 2025-09-17
-- Motyw **Gold+Emerald Pirate**
-- Panel ustawień (motywy, pakiety grafik, Clean Mode)
-- Changelog overlay na każdym odświeżeniu
-- Wstępne podmiany ikon (statki/UI)
-- Przygotowanie pod **GrepoFusion Lab**
+## v1.5.0.1
+- Dodano Auto Build (gp-builder wpleciony w rdzeń).
+- Motyw Emerald+Gold: zielone tła, złote fonty.
+- Poprawki Senatu i Akademii (przygotowanie pod wektory).
+- Przywrócone działanie ukrytych funkcji (raporty, kalkulatory).
+- Konsola: logi debug `[GrepoFusion]`.
 
-## [1.4.5] – 2025-09-16
-- Kontrasty, nagłówki, zapis ustawień
-- Przygotowanie pełnej struktury `assets/`
+## v1.5.0
+- Pirate Edition start + pełna konfiguracja + Lab + changelog.
 
-## [1.4.0 – 1.4.4] – 2025-09-15
-- Redesign 2025 (kolorystyka, panel – wczesny)
-- „Beige Killer”, Clean Mode – pierwsze wersje
+## v1.4.x
+- Wersje testowe (emerald, gold, podstawowe UI).
 
-## [1.3.x]
-- Pierwsze funkcje kolorystyczne i drobne integracje
+## v1.3.x
+- Podstawowy fusion pack, integracja raportów i kolorów.
