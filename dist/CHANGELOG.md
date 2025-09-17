@@ -1,53 +1,48 @@
-# GrepoFusion
+# Changelog – GrepoFusion
 
-**GrepoFusion** – rozbudowany userscript dla Grepolis.  
-Łączy w sobie remaster interfejsu, możliwość podmiany grafik (assets), automatyzację rozgrywki i dodatkowe tryby wizualne.  
+## [1.5.0.1] – 2025-09-17
+- Integracja **Aegis Theme Switcher** (Classic / Remaster / Pirate / Dark).
+- **Asset Map** – konfiguracja RAW base + podmiana grafik (statki, budynki, UI).
+- **AutoBuild (Senat)** – pełna integracja, priorytety budowy.
+- Panel ustawień (⚙) – motywy, RAW base, AutoBuild toggle.
+- Changelog popup przy starcie.
+- Stabilizacja CSS i poprawki UI.
 
----
+## [1.5.0] – 2025-09-17
+- „Pirate Edition” – pierwszy pełny redesign (czarno-złote motywy).
+- Panel ustawień wprowadza przełączanie motywów.
+- Integracja **Lab** (beta).
+- Changelog wyświetlany na starcie.
 
-## ✨ Funkcje
+## [1.4.5] – 2025-09-16
+- Rozbudowany panel ustawień (pierwsza wersja).
+- Podstawowa integracja motywów.
+- Easter Bunny (ukryty feature, jeszcze nieaktywny).
+- Początkowe testy assetów.
 
-- **Motywy (Aegis Theme Switcher)**:
-  - Classic
-  - Remaster 2025
-  - Piracko-epicki
-  - Dark Mode  
+## [1.4.1] – 2025-09-16
+- Naprawione błędy w changelogu (teraz wyświetla się przy każdym odświeżeniu).
+- Dodanie „Clean Mode” i „Beige Killer”.
+- Wczesna wersja panelu ustawień.
 
-- **Asset Map** – możliwość podmiany grafik jednostek, budynków i UI prosto z repozytorium GitHub (RAW base można ustawić w panelu ⚙).
+## [1.4.0-beta] – 2025-09-15
+- Pierwszy redesign interfejsu (Gold + Emerald).
+- Dodanie changelogu, panelu ustawień, Easter Bunny.
+- Podstawowe hooki pod podmianę grafik.
 
-- **AutoBuild (Senat)** – automatyczne budowanie budynków wg priorytetów (kolejki w tle).
+## [1.3.x] – 2025-09
+- Integracja ukrytych dodatków (grcr, dio_tools, gp-builder) bez ich brandingów.
+- Naprawa błędów w raportach i komunikacji.
+- Czyszczenie i optymalizacja kodu.
 
-- **Panel ustawień** – szybkie przełączanie motywów, edycja RAW base, toggle AutoBuild.
+## [1.2.x] – 2025-08
+- Dodanie prostych stylów (ciemne tło, złote akcenty).
+- Początki ukrywania obcych dodatków.
 
-- **Changelog popup** – przy każdym starcie wyświetla nowości w danej wersji.
+## [1.1.x] – 2025-07
+- Rozszerzenie logów konsoli.
+- Przygotowanie pod changelog.
 
-- **Ukryta integracja** dodatków typu *gp-builder* i drobne usprawnienia znanych skryptów – bez widocznych logo, czysta integracja w GrepoFusion.
-
----
-
-## 📦 Instalacja
-
-1. Zainstaluj [Tampermonkey](https://www.tampermonkey.net/).
-2. Kliknij [GrepoFusion.user.js](https://github.com/KID6767/GrepoFusion/raw/main/dist/grepofusion.user.js).
-3. Zatwierdź instalację.
-
----
-
-## 🖼 Podmiana grafik
-
-1. W panelu ⚙ ustaw własny **RAW base** (np. `https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets`).
-2. Wrzucaj pliki `.png` do katalogu `assets/ships`, `assets/buildings`, `assets/ui` itd.
-3. Każdy plik zmapowany w skrypcie będzie automatycznie podmieniany w grze.
-
----
-
-## 📜 Historia zmian
-
-Pełna historia znajduje się w [CHANGELOG.md](CHANGELOG.md).
-
----
-
-## 👥 Autorzy
-
-- **KID6767**
-- **ChatGPT**
+## [1.0.0] – 2025-07
+- **Start projektu.**
+- Minimalny userscript wyświetlający `[GrepoFusion] ready!` w konsoli.
