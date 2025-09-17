@@ -1,0 +1,17 @@
+# GrepoFusion 1.4.5
+
+## 🚀 Nowości
+- Pełna podmiana grafik: statki, piechota, jednostki mityczne, budynki.
+- Motyw Gold+Emerald jako domyślny.
+- Easter Bunny 🐇 — rozbudowa funkcji.
+- Panel ustawień z możliwością włączania/wyłączania modułów.
+- Porównania grafik (before/after).
+- GrepoFusion Lab (beta).
+- Clean Mode + Beige Killer.
+
+## 📥 Instalacja
+[Kliknij tutaj, aby zainstalować](https://github.com/KID6767/GrepoFusion/raw/main/dist/grepofusion.user.js)
+
+---
+
+👑 Autorzy: **KID6767 & ChatGPT**

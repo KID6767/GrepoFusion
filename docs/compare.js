@@ -1,1 +1,0 @@
-console.log('Compare viewer działa!')

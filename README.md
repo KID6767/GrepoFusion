@@ -1,22 +1,17 @@
-# GrepoFusion v1.4.5
+# GrepoFusion 1.5.0
 
-Remaster/Redesign 2025 dla Grepolis:
-- 🎨 Motyw Gold+Emerald (dark UI)
-- ⚙️ Panel ustawień (zakładki)
-- 🧹 Clean Mode, ☠️ Beige Killer
-- 📊 Raporty → BBCode (przycisk + Ctrl+B)
-- 🔔 Attack Alarm (głośność, tryb „tylko wrogie”, test)
-- ⚓ Transport kalkulator
-- ⏪ Back Button
-- 🖼️ Podmiana ikon: statki, piechota, mityczne, budynki
-- 🐇 Easter Bunny (easter egg)
-- 🧪 GrepoFusion Lab (beta)
-- 🖼️ assets/compare/* (Before/After)
+GrepoFusion to kompletny pakiet ulepszeń do **Grepolis**, zawierający integrację wielu dodatków, nową szatę graficzną i laboratorium eksperymentalne.
 
 ## Instalacja
 1. Zainstaluj Tampermonkey.
-2. Plik `dist/grepofusion.user.js` → RAW (auto-update działa po wrzuceniu do repo).
-3. W grze kliknij **⚙️ GrepoFusion** w prawym dolnym rogu.
+2. Kliknij link RAW do `dist/grepofusion.user.js`.
+3. Gotowe.
 
-## Autorzy
-- KID6767 & ChatGPT
+## Funkcje
+- Pirate Remaster (nowe grafiki statków, ikon, kolorystyka Gold+Emerald)
+- Pełna konfiguracja w okienku ustawień
+- Easter Bunny (ukryta funkcja)
+- GrepoFusion Lab (beta)
+
+## FAQ
+**Czy GrepoFusion jest legalne?** Tak — zawiera wyłącznie dozwolone skrypty z forum Grepolis.
