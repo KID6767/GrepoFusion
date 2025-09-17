@@ -1,58 +1,53 @@
-# GrepoFusion — Pirate/Remaster/Dark Skin + Tools
+# GrepoFusion
 
-**GrepoFusion** to zintegrowany pakiet ulepszeń dla Grepolis. Łączy przyjemny, nowoczesny wygląd (Aegis: Classic / Remaster 2025 / Pirate / Dark) z praktycznymi funkcjami: **Asset Map** (podmiana grafik z repozytorium), **AutoBuild (Senat)**, **panel ustawień**, **ekran powitalny** i **changelog**.
-
-## Najważniejsze funkcje
-
-- **Aegis Theme Switcher** – Classic / Remaster 2025 / Pirate / Dark.
-- **Asset Map** – centralna mapa grafik. Wystarczy podmienić pliki w `assets/…`, skrypt sam je załaduje.
-- **AutoBuild (Senat)** – kolejkuje budowy wg priorytetów (w tle), z przełącznikiem w panelu.
-- **Panel ⚙** – motyw, RAW base (adres do grafik), przełącznik AutoBuild, reset ustawień.
-- **Welcome** – pierwsza konfiguracja (motyw + RAW base).
-- **Changelog** – zwięzły pop-up po starcie.
-
-## Instalacja (Tampermonkey)
-
-1. Wejdź na:  
-   `https://github.com/KID6767/GrepoFusion/raw/refs/heads/main/dist/grepofusion.user.js`
-2. Tampermonkey zaproponuje instalację. Zatwierdź.
-3. Odśwież Grepolis. W prawym-dolnym rogu zobaczysz ikonę ⚙ (panel GrepoFusion).
-
-## Struktura repo
-
-dist/
-grepofusion.user.js # gotowy skrypt
-assets/
-ships/
-bireme.png # remasterowana birema
-bireme_pirate.png # birema – wariant piracki
-buildings/
-senate.png # przykładowa podmiana budynku (opcjonalnie)
-ui/
-settings.png # ikony UI (opcjonalnie)
-README.md
-CHANGELOG.md
-
-> **Uwaga:** możesz trzymać tylko te grafiki, które realnie chcesz podmieniać. Braki nie psują działania – Asset Map podmieni jedynie te ścieżki, które znajdzie.
-
-## Podmiana grafik (Asset Map)
-
-- Domyślny RAW base:  
-  `https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets`
-- Zmień go w panelu ⚙ → wpisz własny URL (np. fork lub CDN).
-- Dodatkowe mapowania możesz wstrzyknąć z konsoli:  
-  `GF.addAssetMap({ "ships/lightship.png": "https://…/mój_lightship.png" })`
-
-## AutoBuild (Senat)
-
-- Działa w tle (po załadowaniu gry).  
-- Przełącznik: panel ⚙ → *AutoBuild*.  
-- Priorytety budynków definiuje tablica `instructions` w skrypcie.
-
-## Zgłoszenia / wsparcie
-
-- PRO tip: w razie problemów otwórz konsolę dev (`F12` → Console) i wpisz `GF.debug()`.
+**GrepoFusion** – rozbudowany userscript dla Grepolis.  
+Łączy w sobie remaster interfejsu, możliwość podmiany grafik (assets), automatyzację rozgrywki i dodatkowe tryby wizualne.  
 
 ---
 
-© 2025 KID6767 & ChatGPT. Skórki i kod wcielają funkcjonalnie popularne narzędzia – bez cudzego brandingu, w zgodzie z zasadami forum.
+## ✨ Funkcje
+
+- **Motywy (Aegis Theme Switcher)**:
+  - Classic
+  - Remaster 2025
+  - Piracko-epicki
+  - Dark Mode  
+
+- **Asset Map** – możliwość podmiany grafik jednostek, budynków i UI prosto z repozytorium GitHub (RAW base można ustawić w panelu ⚙).
+
+- **AutoBuild (Senat)** – automatyczne budowanie budynków wg priorytetów (kolejki w tle).
+
+- **Panel ustawień** – szybkie przełączanie motywów, edycja RAW base, toggle AutoBuild.
+
+- **Changelog popup** – przy każdym starcie wyświetla nowości w danej wersji.
+
+- **Ukryta integracja** dodatków typu *gp-builder* i drobne usprawnienia znanych skryptów – bez widocznych logo, czysta integracja w GrepoFusion.
+
+---
+
+## 📦 Instalacja
+
+1. Zainstaluj [Tampermonkey](https://www.tampermonkey.net/).
+2. Kliknij [GrepoFusion.user.js](https://github.com/KID6767/GrepoFusion/raw/main/dist/grepofusion.user.js).
+3. Zatwierdź instalację.
+
+---
+
+## 🖼 Podmiana grafik
+
+1. W panelu ⚙ ustaw własny **RAW base** (np. `https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets`).
+2. Wrzucaj pliki `.png` do katalogu `assets/ships`, `assets/buildings`, `assets/ui` itd.
+3. Każdy plik zmapowany w skrypcie będzie automatycznie podmieniany w grze.
+
+---
+
+## 📜 Historia zmian
+
+Pełna historia znajduje się w [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## 👥 Autorzy
+
+- **KID6767**
+- **ChatGPT**
