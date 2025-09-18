@@ -53,6 +53,28 @@ CHANGELOG.md
 
 - PRO tip: w razie problemów otwórz konsolę dev (`F12` → Console) i wpisz `GF.debug()`.
 
+
+
+## Jak przetestować biremy
+1) W repo dodaj pliki:
+assets/ships/bireme.png assets/ships/bireme_pirate.png
+Skopiuj kod
+
+2) Zainstaluj `dist/grepofusion.user.js` w Tampermonkey.
+3) Odśwież Grepolis – w porcie/listach statków zobaczysz podmienione biremy.
+4) Reszta statków/budynków/UI ma placeholdery (GF w złocie/emeraldzie), więc od razu widać, że mechanizm działa.
+
+## Panel ⚙
+- Zmiana motywu (Aegis).
+- RAW base (skąd brać grafiki) – domyślnie GitHub `assets`.
+- Importer mapy (JSON linia) do szybkiego podmieniania konkretnych ścieżek.
+
+## Debug (konsola)
+- `GF.setTheme('pirate')`
+- `GF.setRawBase('https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets')`
+- `GF.addAssetMap({"ships/lightship.png":"https://…/ls.png"})`
+
+
 ---
 
 © 2025 KID6767 & ChatGPT. Skórki i kod wcielają funkcjonalnie popularne narzędzia – bez cudzego brandingu, w zgodzie z zasadami forum.
