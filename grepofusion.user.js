@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GrepoFusion
 // @namespace    https://github.com/KID6767/GrepoFusion
-// @version      1.5.0.1
-// @description  Theme Switcher (Aegis) + Asset Map (podmiana grafik) + AutoBuild (Senat) + Changelog + Ekran powitalny + Panel ustawień
+// @version      1.5.0.2-rc
+// @description  Legal-friendly: Aegis (Classic/Remaster/Pirate/Dark), Asset Map (podmiana grafik), panel ustawień, dock „pomocników” bez automatyzacji, welcome + changelog.
 // @author       KID6767 & ChatGPT
 // @match        https://*.grepolis.com/*
 // @icon         https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets/ui/logo.png
@@ -16,13 +16,13 @@
 (function(){
   'use strict';
 
-  /* ------------------------------------------------------
-   *  UTIL
-   * --------------------------------------------------- */
-  const VER = "1.5.0.1";
+  /* =========================
+   * UTIL
+   * ======================= */
+  const VER = "1.5.0.2-rc";
   const gget = (k, d) => (typeof GM_getValue === "function" ? GM_getValue(k, d) : d);
   const gset = (k, v) => (typeof GM_setValue === "function" ? GM_setValue(k, v) : null);
-  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+  const onReady = fn => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", fn) : fn());
   function log(...a){ console.log("%c[GrepoFusion]", "color:#d4af37;font-weight:700", ...a); }
   function toast(msg, ms=2200){
     const t = document.createElement("div");
@@ -31,105 +31,122 @@
     document.body.appendChild(t);
     setTimeout(()=>t.remove(), ms);
   }
-  const onDomReady = (fn)=> (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", fn) : fn());
   function el(id){ return document.getElementById(id); }
 
-  /* ------------------------------------------------------
-   *  THEMES (Aegis)
-   * --------------------------------------------------- */
+  /* =========================
+   * THEMES (Aegis)
+   * ======================= */
   const THEMES = {
     classic: `
-      :root { --gf-gold:#d4af37; --gf-bg:#1a1a1a; --gf-ink:#2a2a2a; }
-      .gpwindow_content a { color:#996515 !important; }
+      :root { --gf-gold:#d4af37; --gf-bg:#1a1a1a; --gf-ink:#2a2a2a; --gf-line:#a8832b; }
+      .gpwindow_content a { color:#b68c3a !important; }
     `,
     remaster: `
-      :root{--gf-gold:#f2d98d;--gf-ink:#232a36;--gf-bg:#1a1f29;}
+      :root{--gf-gold:#f2d98d;--gf-ink:#232a36;--gf-bg:#1a1f29;--gf-line:#a8832b;}
       body, .gpwindow_content, .game_inner_box, .ui_box { background:var(--gf-bg) !important; color:var(--gf-gold) !important; }
-      .ui-dialog .ui-dialog-titlebar, .game_header { background:var(--gf-ink) !important; color:var(--gf-gold) !important; border-color:#a8832b !important; }
-      .btn, .button, .context_menu, .ui-button { background:#3c2f2f !important; color:var(--gf-gold) !important; border:1px solid #a8832b !important; }
+      .ui-dialog .ui-dialog-titlebar, .game_header { background:var(--gf-ink) !important; color:var(--gf-gold) !important; border-color:var(--gf-line) !important; }
+      .btn, .button, .context_menu, .ui-button { background:#2a2731 !important; color:var(--gf-gold) !important; border:1px solid var(--gf-line) !important; }
       a, .gpwindow_content a { color:#ffd77a !important; }
-      .gp_table th, .gp_table td { border-color:#a8832b !important; }
+      .gp_table th, .gp_table td { border-color:var(--gf-line) !important; }
     `,
     pirate: `
-      :root{--gf-gold:#d4af37;--gf-ink:#111;--gf-bg:#0b0b0b;}
+      :root{--gf-gold:#d4af37;--gf-ink:#111;--gf-bg:#0b0b0b;--gf-line:#d4af37;}
       body, .gpwindow_content, .game_inner_box, .ui_box { background:var(--gf-bg) !important; color:var(--gf-gold) !important; }
-      .ui-dialog .ui-dialog-titlebar, .game_header { background:var(--gf-ink) !important; color:var(--gf-gold) !important; border-color:var(--gf-gold) !important; }
-      .btn, .button, .context_menu, .ui-button { background:#151515 !important; color:var(--gf-gold) !important; border:1px solid var(--gf-gold) !important; }
+      .ui-dialog .ui-dialog-titlebar, .game_header { background:var(--gf-ink) !important; color:var(--gf-gold) !important; border-color:var(--gf-line) !important; }
+      .btn, .button, .context_menu, .ui-button { background:#151515 !important; color:var(--gf-gold) !important; border:1px solid var(--gf-line) !important; }
       a, .gpwindow_content a { color:#e5c66a !important; }
-      .gp_table th, .gp_table td { border-color:var(--gf-gold) !important; }
+      .gp_table th, .gp_table td { border-color:var(--gf-line) !important; }
     `,
     dark: `
-      :root{--gf-bg:#111;}
+      :root{--gf-bg:#111;--gf-line:#555;}
       body, .gpwindow_content, .game_inner_box, .ui_box, .forum_content { background:#111 !important; color:#ddd !important; }
       a, .gpwindow_content a, .forum_content a { color:#4da6ff !important; }
-      .button, .btn, .ui-button { background:#333 !important; color:#eee !important; border:1px solid #555 !important; }
+      .button, .btn, .ui-button { background:#333 !important; color:#eee !important; border:1px solid var(--gf-line) !important; }
     `
   };
-
   function applyTheme(name){
     const css = THEMES[name] || THEMES.classic;
-    let el = document.getElementById("gf-theme-style");
-    if(!el){ el = document.createElement("style"); el.id="gf-theme-style"; document.head.appendChild(el); }
-    el.textContent = `.gf-theme{}` + css;
+    let s = document.getElementById("gf-theme-style");
+    if(!s){ s = document.createElement("style"); s.id="gf-theme-style"; document.head.appendChild(s); }
+    s.textContent = `.gf-theme{}` + css + `
+      /* Ujednolicenia okien – z-index, tła */
+      .gpwindow, .ui-dialog, .gpwindow_content { z-index: 99999 !important; background: rgba(10,10,10,0.94) !important; }
+      .ui-dialog .ui-dialog-titlebar { border-bottom:1px solid var(--gf-line) !important; }
+      .gp_tab, .ui-tabs .ui-tabs-nav li a { color: inherit !important; }
+    `;
     document.documentElement.classList.add("gf-theme");
     gset("gf_theme", name);
-    toast("Theme: " + name);
   }
 
-  /* ------------------------------------------------------
-   *  ASSET MAP (podmiana grafik po URL)
-   * --------------------------------------------------- */
+  /* =========================
+   * ASSET MAP (no-automation; tylko podmiana URL obrazków)
+   * ======================= */
   let RAW_BASE = gget("gf_raw_base", "https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets");
-
-  const assetMapBase = {
-    "ships/bireme.png"        : () => `${RAW_BASE}/ships/bireme.png`,
-    "ships/bireme_pirate.png" : () => `${RAW_BASE}/ships/bireme_pirate.png`,
-    "ships/trireme.png"       : () => `${RAW_BASE}/ships/trireme.png`,
-    "ships/colony_ship.png"   : () => `${RAW_BASE}/ships/titanic.png`,
-    "ships/fire_ship.png"     : () => `${RAW_BASE}/ships/black_pearl.png`,
-    "buildings/senate.png"    : () => `${RAW_BASE}/buildings/senate.png`,
-    "buildings/academy.png"   : () => `${RAW_BASE}/buildings/academy.png`,
-    "ui/settings.png"         : () => `${RAW_BASE}/ui/settings.png`,
-    "ui/report.png"           : () => `${RAW_BASE}/ui/report.png`,
-    "ui/message.png"          : () => `${RAW_BASE}/ui/message.png`
+  const assetMapStatic = {
+    "ships/bireme.png"         : () => `${RAW_BASE}/ships/bireme.png`,
+    "ships/bireme_pirate.png"  : () => `${RAW_BASE}/ships/bireme_pirate.png`,
+    "ships/trireme.png"        : () => `${RAW_BASE}/ships/trireme.png`,
+    "ships/colony_ship.png"    : () => `${RAW_BASE}/ships/titanic.png`,
+    "ships/fire_ship.png"      : () => `${RAW_BASE}/ships/black_pearl.png`,
+    "buildings/senate.png"     : () => `${RAW_BASE}/buildings/senate.png`,
+    "buildings/academy.png"    : () => `${RAW_BASE}/buildings/academy.png`,
+    "ui/settings.png"          : () => `${RAW_BASE}/ui/settings.png`,
+    "ui/report.png"            : () => `${RAW_BASE}/ui/report.png`,
+    "ui/message.png"           : () => `${RAW_BASE}/ui/message.png`
   };
-  const assetMapExt = gget("gf_asset_map_ext", {});
-  function assetMapEntries(){ const out={}; Object.keys(assetMapBase).forEach(k=>out[k]=assetMapBase[k]()); Object.keys(assetMapExt).forEach(k=>out[k]=assetMapExt[k]); return out; }
-  function mapAsset(src){
-    try{ const map=assetMapEntries(); for(const [needle,url] of Object.entries(map)){ if(src.includes(needle)) return url; } return src; }
-    catch(e){ return src; }
+  const assetMapUser = gget("gf_asset_map_ext", {}); // rozszerzenia z panelu / konsoli
+  function assetMap(){
+    const out = {};
+    Object.keys(assetMapStatic).forEach(k => out[k] = assetMapStatic[k]());
+    Object.keys(assetMapUser).forEach(k => out[k] = assetMapUser[k]);
+    // aliases 12x/48x (spotykane w Grepolis)
+    if(out["ships/bireme.png"]){
+      out["12x/ships/bireme.png"] = out["ships/bireme.png"];
+      out["48x/ships/bireme.png"] = out["ships/bireme.png"];
+    }
+    return out;
+  }
+  function mapSrc(url){
+    try{
+      if(!url || typeof url!=='string') return url;
+      const clean = url.split('?')[0].split('#')[0];
+      const m = assetMap();
+      for(const [needle, dest] of Object.entries(m)){
+        if(clean.includes(needle)) return dest;
+      }
+      return url;
+    }catch(e){ return url; }
   }
 
-  // intercept IMG.setAttribute("src", url)
-  const origCreate = document.createElement;
-  document.createElement = function(tag){
-    const el = origCreate.call(document, tag);
-    if(String(tag).toLowerCase() === "img"){
-      const origSet = el.setAttribute;
-      el.setAttribute = function(name, value){
-        if(name === "src" && typeof value === "string"){ value = mapAsset(value); }
-        return origSet.call(this, name, value);
-      };
-    }
-    return el;
-  };
-
-  // patch istniejących i nowych obrazków
-  const mo = new MutationObserver(muts=>{
-    muts.forEach(m=>{
-      m.addedNodes && m.addedNodes.forEach(n=>{
-        if(n && n.nodeType===1){
-          if(n.tagName==="IMG" && n.src) n.src = mapAsset(n.src);
-          n.querySelectorAll && n.querySelectorAll("img[src]").forEach(img => img.src = mapAsset(img.src));
-        }
-      });
+  // przechwycenie IMG.src i setAttribute
+  const desc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
+  if(desc && desc.set){
+    Object.defineProperty(HTMLImageElement.prototype,'src',{
+      set:function(v){ return desc.set.call(this, mapSrc(v)); },
+      get:desc.get
     });
-  });
-  mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  const _setAttr = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name,val){
+    if(this.tagName==='IMG' && name==='src') return _setAttr.call(this,name,mapSrc(val));
+    return _setAttr.call(this,name,val);
+  };
+  // patch istniejące + nowe
+  function patchImgs(root){
+    root.querySelectorAll && root.querySelectorAll('img[src]').forEach(img=>{
+      const m = mapSrc(img.getAttribute('src'));
+      if(m && m!==img.getAttribute('src')) img.setAttribute('src', m);
+    });
+  }
+  const mo = new MutationObserver(m=>m.forEach(x=>x.addedNodes&&x.addedNodes.forEach(n=>{
+    if(n.nodeType===1){ if(n.tagName==='IMG'){ const m = mapSrc(n.getAttribute('src')); if(m) n.setAttribute('src',m); } patchImgs(n); }
+  })));
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+  onReady(()=>patchImgs(document));
 
-  /* ------------------------------------------------------
-   *  PANEL (FAB) + USTAWIENIA
-   * --------------------------------------------------- */
+  /* =========================
+   * PANEL ⚙ (motywy, RAW base, importer mapy assetów)
+   * ======================= */
   function mountFAB(){
     if(el("gf-fab")) return;
     const fab = document.createElement("div");
@@ -137,259 +154,236 @@
     fab.textContent = "⚙";
     fab.title = "GrepoFusion – ustawienia i motywy";
     fab.style.cssText = "position:fixed;right:18px;bottom:18px;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#111;color:#d4af37;border:2px solid #d4af37;cursor:pointer;z-index:2147483647;box-shadow:0 10px 30px rgba(0,0,0,.55)";
-    fab.onclick = mountPanel;
+    fab.onclick = openPanel;
     document.body.appendChild(fab);
   }
-
-  function mountPanel(){
+  function openPanel(){
     if(el("gf-panel")) return;
-    const wrap = document.createElement("div");
-    wrap.id = "gf-panel";
-    wrap.style.cssText = "position:fixed;bottom:76px;right:18px;width:300px;background:#0f0f0f;color:#d4af37;border:1px solid #d4af37;border-radius:12px;padding:12px;z-index:2147483647;box-shadow:0 16px 40px rgba(0,0,0,.55);font:13px/1.35 system-ui,Arial";
-    wrap.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+    const w = document.createElement("div");
+    w.id = "gf-panel";
+    w.style.cssText = "position:fixed;bottom:76px;right:18px;width:320px;background:#0f0f0f;color:#d4af37;border:1px solid #d4af37;border-radius:12px;padding:12px;z-index:2147483647;box-shadow:0 16px 40px rgba(0,0,0,.55);font:13px/1.35 system-ui,Arial";
+    w.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
         <b>GrepoFusion ${VER}</b>
-        <button id="gf-close" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer;">×</button>
+        <button id="gf-close" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer">×</button>
       </div>
 
       <div>
         <div style="margin:4px 0 4px;">Motyw (Aegis):</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-          <button class="gf-theme-btn" data-theme="classic">Classic</button>
-          <button class="gf-theme-btn" data-theme="remaster">Remaster 2025</button>
-          <button class="gf-theme-btn" data-theme="pirate">Pirate</button>
-          <button class="gf-theme-btn" data-theme="dark">Dark</button>
+          <button class="gf-theme" data-theme="classic">Classic</button>
+          <button class="gf-theme" data-theme="remaster">Remaster 2025</button>
+          <button class="gf-theme" data-theme="pirate">Pirate</button>
+          <button class="gf-theme" data-theme="dark">Dark</button>
         </div>
       </div>
 
       <div style="margin-top:10px;">
-        <div style="margin:4px 0 4px;">RAW base (assets):</div>
-        <input id="gf-raw" style="width:100%;padding:6px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37;" value="${RAW_BASE}">
-        <button id="gf-raw-save" style="margin-top:6px;width:100%;background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer;">Zapisz RAW base</button>
+        <div>RAW base (assets):</div>
+        <input id="gf-raw" style="width:100%;padding:6px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37" value="${RAW_BASE}">
+        <button id="gf-raw-save" style="margin-top:6px;width:100%;background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer">Zapisz RAW base</button>
       </div>
 
       <div style="margin-top:10px;">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input id="gf-autobuild" type="checkbox" ${gget("gf_autobuild_on", true) ? "checked":""}/>
-          <span>AutoBuild (Senat)</span>
-        </label>
-      </div>
-
-      <div style="margin-top:12px;">
-        <button id="gf-reset" style="width:100%;background:#1a1a1a;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer;">Reset ustawień</button>
+        <div>Importer mapy assetów (JSON, linia):</div>
+        <input id="gf-map-json" placeholder='{"ships/lightship.png":"https://…/ls.png"}' style="width:100%;padding:6px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37">
+        <button id="gf-map-apply" style="margin-top:6px;width:100%;background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer">Dodaj/Podmień mapowania</button>
       </div>
     `;
-    document.body.appendChild(wrap);
+    document.body.appendChild(w);
 
-    wrap.querySelectorAll(".gf-theme-btn").forEach(btn=>{
-      btn.style.cssText = "background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer;";
-      btn.addEventListener("click", ()=> applyTheme(btn.getAttribute("data-theme")));
+    w.querySelectorAll(".gf-theme").forEach(b=>{
+      b.style.cssText="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer";
+      b.onclick = ()=>{ applyTheme(b.getAttribute("data-theme")); toast("Zmieniono motyw"); };
     });
-
     el("gf-raw-save").onclick = ()=>{
       const v = el("gf-raw").value.trim();
-      RAW_BASE = v || RAW_BASE;
-      gset("gf_raw_base", RAW_BASE);
-      toast("Zapisano RAW base");
+      if(v){ RAW_BASE = v; gset("gf_raw_base", v); toast("Zapisano RAW base"); }
     };
-
-    el("gf-autobuild").onchange = (e)=>{
-      gset("gf_autobuild_on", !!e.target.checked);
-      toast("AutoBuild: " + (e.target.checked ? "ON":"OFF"));
+    el("gf-map-apply").onclick = ()=>{
+      try{
+        const cur = gget("gf_asset_map_ext", {});
+        const add = JSON.parse(el("gf-map-json").value || "{}");
+        Object.assign(cur, add||{});
+        gset("gf_asset_map_ext", cur);
+        toast("Zapisano mapowanie assetów");
+      }catch(e){ toast("Błędny JSON"); }
     };
-
-    el("gf-reset").onclick = ()=>{
-      ["gf_theme","gf_raw_base","gf_asset_map_ext","gf_autobuild_on","gf_welcome_done"].forEach(k=>gset(k, null));
-      toast("Ustawienia wyzerowane. Odśwież stronę (F5).", 3000);
-    };
-
-    el("gf-close").onclick = ()=>wrap.remove();
+    el("gf-close").onclick = ()=>w.remove();
   }
 
-  /* ------------------------------------------------------
-   *  CHANGELOG (na starcie)
-   * --------------------------------------------------- */
-  function showChangelog(){
-    if(el("gf-changelog")) return;
-    const box = document.createElement("div");
-    box.id = "gf-changelog";
-    box.style.cssText = "position:fixed;left:50%;top:18px;transform:translateX(-50%);width:min(680px,92vw);background:#0f0f0f;color:#d4af37;border:2px solid #d4af37;border-radius:12px;padding:12px;z-index:2147483647;box-shadow:0 16px 40px rgba(0,0,0,.55)";
-    box.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <b>⚓ GrepoFusion ${VER} – Changelog</b>
-        <button id="gf-changelog-x" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer;">×</button>
-      </div>
-      <ul style="margin:8px 0 0 18px;line-height:1.35">
-        <li>Theme Switcher (Classic / Remaster 2025 / Pirate / Dark)</li>
-        <li>Asset Map – podmiana grafik z GitHuba; RAW base konfigurowalne</li>
-        <li>AutoBuild (Senat) – kolejkuje budowy wg priorytetów</li>
-        <li>Panel ⚙ – zmiana motywu, RAW base, przełącznik AutoBuild</li>
-        <li>Ekran powitalny przy pierwszym uruchomieniu (konfiguracja startowa)</li>
-        <li>Stabilizacja CSS okien i selektorów</li>
-      </ul>
+  /* =========================
+   * DOCK „POMOCNIKÓW” (zero auto–akcji, tylko przyciski użytkownika)
+   * ======================= */
+  function mountDock(){
+    if(el("gf-dock")) return;
+    const d = document.createElement("div");
+    d.id = "gf-dock";
+    d.style.cssText = `
+      position:fixed; right:14px; top:110px; width:330px; max-height:76vh; overflow:auto;
+      border:1px solid #d4af37; background:#0f0f0f; color:#d4af37; border-radius:12px;
+      box-shadow:0 18px 44px rgba(0,0,0,.55); font:13px/1.35 system-ui,Arial; padding:10px; z-index:2147483200;
     `;
-    document.body.appendChild(box);
-    el("gf-changelog-x").onclick = ()=>box.remove();
+    d.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+        <b>GrepoFusion — Narzędzia (manual)</b>
+        <button id="gf-dock-close" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:2px 8px;cursor:pointer">×</button>
+      </div>
+
+      <div class="gf-card" style="border:1px solid #d4af37;border-radius:10px;padding:10px;background:#0b0b0b;margin-bottom:8px">
+        <b>Pomocnik Budowlańca (Senat)</b>
+        <p style="margin:6px 0 8px;opacity:.9">Ustaw cele i kliknij „Dodaj do kolejki” wewnątrz okna Senatu. Ten moduł niczego nie klika sam — tylko podświetla i ułatwia dostęp.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="gf-open" data-target="senate">Otwórz Senat</button>
+          <button class="gf-hl" data-target="senate">Podświetl UI</button>
+        </div>
+      </div>
+
+      <div class="gf-card" style="border:1px solid #d4af37;border-radius:10px;padding:10px;background:#0b0b0b;margin-bottom:8px">
+        <b>Rekruter (Koszary / Port)</b>
+        <p style="margin:6px 0 8px;opacity:.9">Szybkie dojście do okna rekrutacji. Samodzielnie potwierdzasz przyciskami w grze.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="gf-open" data-target="barracks">Koszary</button>
+          <button class="gf-open" data-target="harbor">Port</button>
+          <button class="gf-hl" data-target="recruit">Podświetl pola rekrutacji</button>
+        </div>
+      </div>
+
+      <div class="gf-card" style="border:1px solid #d4af37;border-radius:10px;padding:10px;background:#0b0b0b">
+        <b>Mentor Akademicki</b>
+        <p style="margin:6px 0 8px;opacity:.9">Szybkie dojście do Akademii i skupienie uwagi na badaniach. Zero auto-kolejkowania.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="gf-open" data-target="academy">Otwórz Akademię</button>
+          <button class="gf-hl" data-target="academy">Podświetl badania</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(d);
+    d.querySelectorAll("button").forEach(b=>{
+      b.style.cssText = "background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer";
+    });
+    d.querySelector("#gf-dock-close").onclick = ()=>d.remove();
+
+    // „Otwarcia” – bez automatyzacji: tylko próba odpalenia odpowiednich okien gry.
+    d.querySelectorAll(".gf-open").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const tgt = btn.getAttribute("data-target");
+        try{
+          if(!window.Layout || !Layout.wnd) throw 0;
+          // nazwy zakładek mogą się różnić per świat/wersja; obsłużymy najczęstsze
+          const map = {
+            senate : ['building_main','senate','main'],
+            barracks: ['barracks','barrack'],
+            harbor : ['docks','harbor','port'],
+            academy: ['academy']
+          };
+          const keys = map[tgt]||[];
+          let ok=false;
+          for(const k of keys){
+            try{ Layout.wnd.Create(k); ok=true; break; }catch(e){}
+          }
+          toast(ok?`Otwieram: ${tgt}`:`Nie udało się otworzyć okna (${tgt})`);
+        }catch(e){ toast("UI nie gotowe"); }
+      });
+    });
+
+    // „Podświetlenia” – tylko wizualne
+    d.querySelectorAll(".gf-hl").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const tgt = btn.getAttribute("data-target");
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;inset:0;z-index:2147483500;pointer-events:none";
+        overlay.innerHTML = `<div style="position:absolute;right:20px;top:20px;background:#000000cc;color:#d4af37;border:1px solid #d4af37;border-radius:10px;padding:10px;max-width:340px">
+          <b>Wskazówka GrepoFusion</b><br>
+          ${tgt==='senate' ? 'W oknie Senatu wybierz budynek, ustaw docelowy poziom i kliknij „Dodaj do kolejki”.' :
+            tgt==='recruit' ? 'W Koszarach/Porcie wpisz ilości jednostek i zatwierdź w grze przyciskiem rekrutacji.' :
+            'W Akademii wybierz badanie i potwierdź.'}
+          <div style="margin-top:6px;opacity:.8">To tylko podpowiedź wizualna — GrepoFusion nie klika za Ciebie.</div>
+        </div>`;
+        document.body.appendChild(overlay);
+        setTimeout(()=>overlay.remove(), 3000);
+      });
+    });
   }
 
-  /* ------------------------------------------------------
-   *  WELCOME (pierwsze uruchomienie)
-   * --------------------------------------------------- */
-  function showWelcomeIfFirstRun(){
+  /* =========================
+   * WELCOME + CHANGELOG (legal-friendly)
+   * ======================= */
+  function showWelcomeOnce(){
     if(gget("gf_welcome_done", false)) return;
     const w = document.createElement("div");
-    w.id = "gf-welcome";
-    w.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,92vw);background:#0f0f0f;color:#d4af37;border:2px solid #d4af37;border-radius:12px;padding:14px;z-index:2147483647;box-shadow:0 20px 48px rgba(0,0,0,.65);font:14px/1.35 system-ui,Arial";
-    w.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+    w.style.cssText="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,92vw);background:#0f0f0f;color:#d4af37;border:2px solid #d4af37;border-radius:12px;padding:14px;z-index:2147483647;box-shadow:0 20px 48px rgba(0,0,0,.65);font:14px/1.35 system-ui,Arial";
+    w.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <b>Witaj w GrepoFusion ${VER}</b>
-        <button id="gf-w-x" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer;">×</button>
+        <button id="gf-w-x" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer">×</button>
       </div>
-      <p style="margin:8px 0 10px">Wybierz startowy motyw i bazę grafik. Zawsze możesz to zmienić w panelu (⚙ w prawym dolnym rogu).</p>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <p style="margin:8px 0 10px">Wybierz motyw i bazę grafik. GrepoFusion nie wykonuje akcji za gracza — to legalny zestaw ulepszeń wizualnych i pomocników UI.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <button class="gf-w-theme" data-theme="classic">Classic</button>
         <button class="gf-w-theme" data-theme="remaster">Remaster 2025</button>
         <button class="gf-w-theme" data-theme="pirate">Pirate</button>
         <button class="gf-w-theme" data-theme="dark">Dark</button>
       </div>
-
-      <div style="margin-top:10px;">
-        <div>RAW base (assets):</div>
-        <input id="gf-w-raw" style="width:100%;padding:6px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37;" value="${RAW_BASE}">
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input id="gf-w-autobuild" type="checkbox" ${gget("gf_autobuild_on", true) ? "checked":""}/> AutoBuild
-        </label>
-        <button id="gf-w-ok" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px 10px;cursor:pointer;">Zapisz</button>
+      <div>RAW base (assets):</div>
+      <input id="gf-w-raw" style="width:100%;padding:6px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37" value="${RAW_BASE}">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="gf-w-ok" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px 10px;cursor:pointer">Zapisz</button>
       </div>
     `;
     document.body.appendChild(w);
-
     w.querySelectorAll(".gf-w-theme").forEach(b=>{
-      b.style.cssText = "background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer;";
+      b.style.cssText="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:8px;padding:6px;cursor:pointer";
       b.onclick = ()=> applyTheme(b.getAttribute("data-theme"));
     });
-
-    const close = ()=>{ w.remove(); gset("gf_welcome_done", true); };
-    el("gf-w-x").onclick = close;
+    el("gf-w-x").onclick = ()=>{ w.remove(); gset("gf_welcome_done", true); };
     el("gf-w-ok").onclick = ()=>{
-      const raw = el("gf-w-raw").value.trim();
-      if(raw){ RAW_BASE = raw; gset("gf_raw_base", RAW_BASE); }
-      gset("gf_autobuild_on", el("gf-w-autobuild").checked);
-      close();
-      toast("Konfiguracja zapisana");
+      const v = el("gf-w-raw").value.trim();
+      if(v){ RAW_BASE=v; gset("gf_raw_base", v); }
+      w.remove(); gset("gf_welcome_done", true); toast("Zapisano startowe ustawienia");
     };
   }
-
-  /* ------------------------------------------------------
-   *  AUTOBUILD (Senat) – integracja
-   * --------------------------------------------------- */
-  const isCuratorEnabled = (window.Game && Game.premium_features && Game.premium_features.curator) ? (Game.premium_features.curator > Date.now()/1000) : false;
-  const blackList = [];
-
-  const instructions = [
-    { lumber: 20, stoner: 20, ironer: 20, storage: 15, farm: 10, barracks: 5, academy: 13, main: 25 },
-    { lumber: 40, stoner: 40, ironer: 40, storage: 35, farm: 20 },
-    { temple: 30, market: 30, hide: 10, academy: 36, farm: 45 },
-    { docks: 30, statue: 1, thermal: 1, barracks: 30 }
-  ];
-
-  function hasEnough(townId, need){
-    try{
-      const r = ITowns.towns[townId].resources();
-      return r.wood>=need.wood && r.stone>=need.stone && r.iron>=need.iron;
-    }catch(e){ return false; }
-  }
-  function queueFull(attr){ try{ return !!attr.is_building_order_queue_full; }catch(e){ return true; } }
-
-  function postBuild(order){
-    return new Promise((res,rej)=>{
-      gpAjax.ajaxPost("frontend_bridge","execute",{
-        model_url:"BuildingOrder",
-        action_name:"buildUp",
-        arguments:{ building_id: order.name },
-        town_id: order.town
-      }, false, { success:res, error:rej });
-    });
+  function showChangelog(){
+    const box = document.createElement("div");
+    box.style.cssText="position:fixed;left:50%;top:18px;transform:translateX(-50%);width:min(680px,92vw);background:#0f0f0f;color:#d4af37;border:2px solid #d4af37;border-radius:12px;padding:12px;z-index:2147483647;box-shadow:0 16px 40px rgba(0,0,0,.55)";
+    box.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <b>⚓ GrepoFusion ${VER} — Changelog</b>
+        <button id="gf-chg-x" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer">×</button>
+      </div>
+      <ul style="margin:8px 0 0 18px;line-height:1.35">
+        <li>Pełna korekta wizualna (Aegis: Classic/Remaster/Pirate/Dark).</li>
+        <li>Asset Map: czysta podmiana grafik z repo (bez akcji w grze).</li>
+        <li>Dock „pomocników” — tylko skróty UI i podświetlenia (manual).</li>
+        <li>Panel ⚙: motyw, RAW base, importer map.</li>
+        <li>Ekran powitalny (pierwsze uruchomienie).</li>
+      </ul>
+    `;
+    document.body.appendChild(box);
+    el("gf-chg-x").onclick = ()=>box.remove();
   }
 
-  async function runAutoBuildLoop(){
-    if(!gget("gf_autobuild_on", true)) return setTimeout(runAutoBuildLoop, 30000);
-    try{
-      const models = Object.values(MM.getModels().BuildingBuildData || {});
-      for(const {attributes:a} of models){
-        if(queueFull(a)) continue;
-        const tgt = instructions.find(t => Object.entries(t).some(([name, level]) => {
-          const d = a.building_data[name];
-          return d && !d.has_max_level && d.next_level <= level;
-        }));
-        if(!tgt) continue;
-
-        for(const [name, level] of Object.entries(tgt)){
-          const d = a.building_data[name];
-          if(!d || d.has_max_level || d.next_level>level) continue;
-          if(!hasEnough(a.id, d.resources_for)) continue;
-
-          const black = blackList.find(b => b.name===name && b.level===d.next_level && b.town===a.id);
-          if(black) continue;
-
-          try{
-            await postBuild({name, level:d.next_level, town:a.id});
-            log("AutoBuild:", name, "->", d.next_level, "@", ITowns.towns[a.id].name);
-          }catch(e){
-            blackList.push({name, level:d.next_level, town:a.id});
-          }
-          await sleep(1500 + Math.random()*2500);
-        }
-      }
-    }catch(e){ /* ignore */ }
-    setTimeout(runAutoBuildLoop, 60000);
-  }
-
-  function initAutoBuild(){
-    if(window.jQuery && window.GameEvents){
-      jQuery.Observer(GameEvents.game.load).subscribe(()=>setTimeout(runAutoBuildLoop, 2500));
-    }else{
-      setTimeout(initAutoBuild, 2000);
-    }
-  }
-
-  /* ------------------------------------------------------
-   *  START
-   * --------------------------------------------------- */
+  /* =========================
+   * START
+   * ======================= */
   function start(){
-    const savedTheme = gget("gf_theme", "pirate");
-    applyTheme(savedTheme);
+    applyTheme(gget("gf_theme","pirate"));
     mountFAB();
+    mountDock();
+    showWelcomeOnce();
     showChangelog();
-    showWelcomeIfFirstRun();
-    initAutoBuild();
 
+    // Eksport narzędzi konsolowych (bez automatyzacji)
     window.GF = {
       version: VER,
       setTheme: applyTheme,
       setRawBase: (u)=>{ RAW_BASE=u; gset("gf_raw_base", u); toast("RAW base updated"); },
       addAssetMap: (obj)=>{ const cur = gget("gf_asset_map_ext",{}); Object.assign(cur, obj||{}); gset("gf_asset_map_ext", cur); toast("Asset map extended"); },
-      debug: ()=>({ theme: gget("gf_theme"), raw: gget("gf_raw_base"), autobuild: gget("gf_autobuild_on",true) }),
-      reset: ()=>{ ["gf_theme","gf_raw_base","gf_asset_map_ext","gf_autobuild_on","gf_welcome_done"].forEach(k=>gset(k,null)); toast("Reset done. Reload."); }
+      debug: ()=>({ theme: gget("gf_theme"), raw: gget("gf_raw_base") })
     };
 
-    log(`v${VER} started (theme=${savedTheme})`);
+    log(`v${VER} ready (no-automation)`);
   }
 
-  onDomReady(start);
-
-  /* ------------------------------------------------------
-   *  (blok komentarzy trzymany świadomie dłuższy, by utrzymać >340 linii
-   *   oraz ułatwić przyszłe diffy/patchowanie)
-   * --------------------------------------------------- */
-  // … (komentarze techniczne / roadmap, jak w poprzedniej wersji)
-  // ..........................................................................
-  // ..........................................................................
-  // ..........................................................................
-  // ..........................................................................
-  // ..........................................................................
+  onReady(start);
 })();
