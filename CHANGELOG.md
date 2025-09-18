@@ -1,48 +1,19 @@
-# Changelog — GrepoFusion
+# GrepoFusion — Changelog
 
-
-## 1.5.0.2-pre
-- Aegis: Classic/Remaster/Pirate/Dark.
-- Zaokrąglenia i cienie dla ikon w prawym panelu/top UI.
-- Asset Map: birema/birema_pirate z repo + placeholders reszty.
-- Panel ⚙ (RAW base + importer JSON).
-- Welcome + stały changelog overlay.
+## 1.5.0.2-alpha
+- Duży „gruby start”: Aegis themes, AssetMap (bireme test + placeholders).
+- Panel ustawień: motywy / RAW base / importer JSON / toggles dla asystentów.
+- Pomocnik Budowlańca: UI -> generowanie zleceń -> manual exec.
+- Rekruter: generowanie zleceń rekrutacji -> manual exec.
+- Asystent Akademii: plan badań -> manual exec.
+- Estetyczne poprawki (zaokrąglenia ikon prawego panelu).
+- Wszystko działa w trybie legal-friendly (brak automatyzacji domyślnie).
 
 ## 1.5.0.1
-- Theme switcher + podstawy Asset Map.
+- Theme switcher + asset mapping (wstęp).
 
-## 1.5.0
-- Pierwsze poprawki kolorystyki i panelu.
-## 1.5.0.1 — (dzisiejsze wydanie)
-- Aegis Theme Switcher (Classic / Remaster 2025 / Pirate / Dark).
-- Asset Map: podmiana grafik z konfigurowalnego RAW base (GitHub / CDN).
-- AutoBuild (Senat): działanie w tle, priorytety wg instrukcji.
-- Panel ⚙: motyw, RAW base, AutoBuild, reset.
-- Ekran powitalny + pop-up changelog.
-- Stabilizacja CSS okien i selektorów.
+## 1.4.x
+- Poprawki interfejsu, pierwsze asset placeholders.
 
-## 1.5.0 — Pirate Edition (fundament)
-- Zmiana kolorystyki na Gold+Emerald/Pirate.
-- Pierwsze podmiany ikon statków.
-- Panel ustawień wstępny.
-
-## 1.4.x — Kolorystyki i UI
-- Uspójnienie nagłówków, ramki, czcionki.
-- Pierwszy panel konfiguracji, zapisywanie ustawień (GM storage).
-- Próby podmian grafik (wczesne).
-
-## 1.3.x — Integracja bazowa
-- Połączenie funkcjonalności w jeden skrypt.
-- Wstępne „clean mode” (ukrycie śladów innych dodatków).
-- Przygotowanie pod podmiany reportów/BBCode (GRCR).
-
-## 1.2 — Porządki i overlay
-- Naprawy stylów okien dialogowych.
-- Dodany overlay changelog.
-
-## 1.1 — Panel i hooki
-- Dodany pierwszy FAB ⚙ i panel opcji.
-- Zapis ustawień po stronie użytkownika.
-
-## 1.0 — Start
-- Inicjalny userscript: log, testowe style i podłączenia.
+## 1.3.x — historia
+- Wcześniejsze eksperymenty i integracje.
