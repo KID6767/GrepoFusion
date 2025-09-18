@@ -1,5 +1,18 @@
 # Changelog — GrepoFusion
 
+
+## 1.5.0.2-pre
+- Aegis: Classic/Remaster/Pirate/Dark.
+- Zaokrąglenia i cienie dla ikon w prawym panelu/top UI.
+- Asset Map: birema/birema_pirate z repo + placeholders reszty.
+- Panel ⚙ (RAW base + importer JSON).
+- Welcome + stały changelog overlay.
+
+## 1.5.0.1
+- Theme switcher + podstawy Asset Map.
+
+## 1.5.0
+- Pierwsze poprawki kolorystyki i panelu.
 ## 1.5.0.1 — (dzisiejsze wydanie)
 - Aegis Theme Switcher (Classic / Remaster 2025 / Pirate / Dark).
 - Asset Map: podmiana grafik z konfigurowalnego RAW base (GitHub / CDN).
