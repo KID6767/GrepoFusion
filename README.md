@@ -1,80 +1,35 @@
-# GrepoFusion — Pirate/Remaster/Dark Skin + Tools
+# GrepoFusion — 1.5.0.2-alpha
 
-**GrepoFusion** to zintegrowany pakiet ulepszeń dla Grepolis. Łączy przyjemny, nowoczesny wygląd (Aegis: Classic / Remaster 2025 / Pirate / Dark) z praktycznymi funkcjami: **Asset Map** (podmiana grafik z repozytorium), **AutoBuild (Senat)**, **panel ustawień**, **ekran powitalny** i **changelog**.
+GrepoFusion to pakiet wizualnych i funkcyjnych ulepszeń do Grepolis: motywy (Aegis), podmiana grafik (AssetMap), panel ustawień, oraz wbudowane moduły-asystenci (Pomocnik Budowlańca, Rekruter, Asystent Akademii).
 
-## Najważniejsze funkcje
+> Wersja alpha 1.5.0.2 — legal-friendly: automatyczne akcje domyślnie wyłączone. Wszystkie akcje wykonuje użytkownik (manual/klik).
 
-- **Aegis Theme Switcher** – Classic / Remaster 2025 / Pirate / Dark.
-- **Asset Map** – centralna mapa grafik. Wystarczy podmienić pliki w `assets/…`, skrypt sam je załaduje.
-- **AutoBuild (Senat)** – kolejkuje budowy wg priorytetów (w tle), z przełącznikiem w panelu.
-- **Panel ⚙** – motyw, RAW base (adres do grafik), przełącznik AutoBuild, reset ustawień.
-- **Welcome** – pierwsza konfiguracja (motyw + RAW base).
-- **Changelog** – zwięzły pop-up po starcie.
+## Instalacja (szybki start)
+1. W repo utwórz folder `assets/ships/` i wrzuć:
+   - `bireme.png`
+   - `bireme_pirate.png`
+2. Zainstaluj `dist/grepofusion.user.js` w Tampermonkey (lub wklej zawartość skryptu jako nowy userscript).
+3. Odśwież Grepolis.
+4. Otwórz panel ustawień (ikona ⚙ w prawym dolnym rogu) i sprawdź RAW base, motywy i mapowanie assetów.
 
-## Instalacja (Tampermonkey)
+## Co zawiera paczka
+- `dist/grepofusion.user.js` — główny skrypt (themes, assetmap, panel, asystenci)
+- `assets/ships/bireme.png` — bio test
+- `assets/ships/bireme_pirate.png` — bio pirate test
+- placeholdery dla innych grafik (wyświetlają się automatycznie, dopóki nie wrzucisz prawdziwych)
 
-1. Wejdź na:  
-   `https://github.com/KID6767/GrepoFusion/raw/refs/heads/main/dist/grepofusion.user.js`
-2. Tampermonkey zaproponuje instalację. Zatwierdź.
-3. Odśwież Grepolis. W prawym-dolnym rogu zobaczysz ikonę ⚙ (panel GrepoFusion).
+## Panel ustawień
+- Motyw: Classic / Remaster / Pirate / Dark
+- RAW base: URL do katalogu z assetami (domyślnie GitHub)
+- Import mapy: JSON z mapowaniem ścieżek (np. `{"ships/trireme.png":"https://.../trireme.png"}`)
 
-## Struktura repo
+## Asystenci
+- **Pomocnik Budowlańca** — UI do ustawiania docelowych poziomów budynków per miasto. Generuje zlecenia i umożliwia ich wykonanie ręczne.
+- **Rekruter** — pozwala tworzyć zlecenia rekrutacji (format `unit:count`) i wykonywać je (manual).
+- **Asystent Akademii** — plan badań per miasto i manual execution.
 
-dist/
-grepofusion.user.js # gotowy skrypt
-assets/
-ships/
-bireme.png # remasterowana birema
-bireme_pirate.png # birema – wariant piracki
-buildings/
-senate.png # przykładowa podmiana budynku (opcjonalnie)
-ui/
-settings.png # ikony UI (opcjonalnie)
-README.md
-CHANGELOG.md
+## Dalsze prace
+- Kolejne paczki assetów (statki, budynki, UI) będą wgrywane partiami.
+- Dalsze dopracowanie wykonywania zleceń oraz integracji z oryginalnymi modami (wcielenie funkcjonalności).
 
-> **Uwaga:** możesz trzymać tylko te grafiki, które realnie chcesz podmieniać. Braki nie psują działania – Asset Map podmieni jedynie te ścieżki, które znajdzie.
-
-## Podmiana grafik (Asset Map)
-
-- Domyślny RAW base:  
-  `https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets`
-- Zmień go w panelu ⚙ → wpisz własny URL (np. fork lub CDN).
-- Dodatkowe mapowania możesz wstrzyknąć z konsoli:  
-  `GF.addAssetMap({ "ships/lightship.png": "https://…/mój_lightship.png" })`
-
-## AutoBuild (Senat)
-
-- Działa w tle (po załadowaniu gry).  
-- Przełącznik: panel ⚙ → *AutoBuild*.  
-- Priorytety budynków definiuje tablica `instructions` w skrypcie.
-
-## Zgłoszenia / wsparcie
-
-- PRO tip: w razie problemów otwórz konsolę dev (`F12` → Console) i wpisz `GF.debug()`.
-
-
-
-## Jak przetestować biremy
-1) W repo dodaj pliki:
-assets/ships/bireme.png assets/ships/bireme_pirate.png
-Skopiuj kod
-
-2) Zainstaluj `dist/grepofusion.user.js` w Tampermonkey.
-3) Odśwież Grepolis – w porcie/listach statków zobaczysz podmienione biremy.
-4) Reszta statków/budynków/UI ma placeholdery (GF w złocie/emeraldzie), więc od razu widać, że mechanizm działa.
-
-## Panel ⚙
-- Zmiana motywu (Aegis).
-- RAW base (skąd brać grafiki) – domyślnie GitHub `assets`.
-- Importer mapy (JSON linia) do szybkiego podmieniania konkretnych ścieżek.
-
-## Debug (konsola)
-- `GF.setTheme('pirate')`
-- `GF.setRawBase('https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets')`
-- `GF.addAssetMap({"ships/lightship.png":"https://…/ls.png"})`
-
-
----
-
-© 2025 KID6767 & ChatGPT. Skórki i kod wcielają funkcjonalnie popularne narzędzia – bez cudzego brandingu, w zgodzie z zasadami forum.
+© KID6767 & ChatGPT
