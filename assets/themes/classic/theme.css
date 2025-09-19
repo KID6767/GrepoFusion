@@ -1,0 +1,3 @@
+:root{--gf-gold:#d4af37;--gf-bg:#f4e2b2;--gf-text:#222}
+body,.gpwindow_content,.game_inner_box,.ui_box{background:var(--gf-bg)!important;color:var(--gf-text)!important}
+a,.gpwindow_content a{color:#996515!important}

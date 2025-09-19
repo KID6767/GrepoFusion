@@ -1,0 +1,6 @@
+:root{--gf-gold:#d4af37;--gf-ink:#0f0f0f;--gf-bg:#0a0a0a}
+body,.gpwindow_content,.game_inner_box,.ui_box{background:var(--gf-bg)!important;color:var(--gf-gold)!important}
+.ui-dialog .ui-dialog-titlebar,.game_header{background:var(--gf-ink)!important;color:var(--gf-gold)!important;border-color:var(--gf-gold)!important}
+.btn,.button,.context_menu,.ui-button{background:#151515!important;color:var(--gf-gold)!important;border:1px solid var(--gf-gold)!important}
+a,.gpwindow_content a{color:#e5c66a!important}
+.gp_table th,.gp_table td{border-color:var(--gf-gold)!important}
