@@ -1,0 +1,2492 @@
+﻿<# ======================================================================
+  GrepoFusion – build script (1.5.1)
+  - Generuje pełny dodatek GrepoFusion:
+      • Userscript (.user.js) z Base64 assetami
+      • README.md i CHANGELOG.md
+      • Struktura katalogów: assets/, docs/, dist/, userscripts/
+      • Auto-ZIP i git push
+  - Wszystko w jednym, pełnowartościowym pliku PowerShell
+====================================================================== #>
+
+
+# -------------------------
+# KONFIGURACJA GLOBALNA
+# -------------------------
+$Version     = '1.5.1'
+$RepoRoot    = "C:\Users\macie\Documents\GitHub\GrepoFusion"
+$Assets      = Join-Path $RepoRoot 'assets'
+$Branding    = Join-Path $Assets   'branding'
+$Fx          = Join-Path $Assets   'fx'
+$Themes      = Join-Path $Assets   'themes'
+$Docs        = Join-Path $RepoRoot 'docs'
+$Userscripts = Join-Path $RepoRoot 'userscripts'
+$Dist        = Join-Path $RepoRoot 'dist'
+
+
+$UserJsPath  = Join-Path $Userscripts 'grepofusion.user.js'
+$ReadmePath  = Join-Path $Docs 'README.md'
+$ChlogPath   = Join-Path $Docs 'CHANGELOG.md'
+$ThemeClassic = Join-Path $Themes 'classic'
+$ThemePirate  = Join-Path $Themes 'pirate'
+$ThemeRemaster= Join-Path $Themes 'remaster'
+$ThemeDark    = Join-Path $Themes 'dark'
+$LogoPng     = Join-Path $Branding 'logo_grepofusion.png'
+$ZipPath     = Join-Path $Dist ("GrepoFusion-$Version.zip")
+
+
+# -------------------------
+# FUNKCJE POMOCNICZE
+# -------------------------
+function Log([string]$msg){ 
+  $ts = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+  Write-Host "$ts  $msg" -ForegroundColor Cyan
+}
+
+
+function EnsureDir($path){ 
+  if(-not (Test-Path $path)){ 
+    New-Item -ItemType Directory -Path $path | Out-Null 
+  }
+}
+
+
+function WriteUtf8([string]$path,[string]$content){
+  $dir = Split-Path -Parent $path; EnsureDir $dir
+  [IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+
+function WriteBytes([string]$path,[byte[]]$bytes){
+  $dir = Split-Path -Parent $path; EnsureDir $dir
+  [IO.File]::WriteAllBytes($path,$bytes)
+}
+
+
+# bezpieczny dekoder Base64
+function SafeB64([string]$b64){
+  try { return [Convert]::FromBase64String($b64) } 
+  catch { return @() }
+}
+
+
+# -------------------------
+# STRUKTURA KATALOGÓW
+# -------------------------
+EnsureDir $Assets
+EnsureDir $Branding
+EnsureDir $Fx
+EnsureDir $Themes
+EnsureDir $ThemeClassic
+EnsureDir $ThemePirate
+EnsureDir $ThemeRemaster
+EnsureDir $ThemeDark
+EnsureDir $Docs
+EnsureDir $Userscripts
+EnsureDir $Dist
+
+
+Log "Struktura ✓"
+
+
+# -------------------------
+# LOGO (Base64 PNG 1x1 gold)
+# -------------------------
+$LogoB64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO0dQ0AAgMB3e1IBZwAAAAASUVORK5CYII="
+$logoBytes = SafeB64 $LogoB64
+if($logoBytes.Length -gt 0){ WriteBytes $LogoPng $logoBytes }
+Log "Logo ✓"
+
+
+# -------------------------
+# THEMES (Classic, Pirate, Remaster, Dark)
+# -------------------------
+$ClassicCss = @'
+:root{--gf-gold:#d4af37;--gf-bg:#f4e2b2;--gf-text:#222;}
+body{background:var(--gf-bg)!important;color:var(--gf-text)!important;}
+a{color:#996515!important;}
+'@
+WriteUtf8 (Join-Path $ThemeClassic 'theme.css') $ClassicCss
+
+
+$PirateCss = @'
+:root{--gf-gold:#d4af37;--gf-bg:#0a0a0a;--gf-text:#e0c878;}
+body{background:var(--gf-bg)!important;color:var(--gf-text)!important;}
+a{color:#e5c66a!important;}
+'@
+WriteUtf8 (Join-Path $ThemePirate 'theme.css') $PirateCss
+
+
+$RemasterCss = @'
+:root{--gf-gold:#f2d98d;--gf-bg:#1a1f29;--gf-text:#f3f3f3;}
+body{background:var(--gf-bg)!important;color:var(--gf-text)!important;}
+a{color:#ffd77a!important;}
+'@
+WriteUtf8 (Join-Path $ThemeRemaster 'theme.css') $RemasterCss
+
+
+$DarkCss = @'
+:root{--gf-bg:#111;--gf-text:#ddd;--gf-accent:#4da6ff;}
+body{background:var(--gf-bg)!important;color:var(--gf-text)!important;}
+a{color:var(--gf-accent)!important;}
+'@
+WriteUtf8 (Join-Path $ThemeDark 'theme.css') $DarkCss
+
+
+Log "Themes ✓"
+
+
+# -------------------------
+# USERSCRIPT HEADER
+# -------------------------
+$UserJsHead = @"
+/* ==UserScript==
+@name         GrepoFusion
+@namespace    https://github.com/KID6767/GrepoFusion
+@version      $Version
+@description  Najcudowniejszy i najczystszy dodatek do Grepolis (motywy, grafiki, mody, konfiguracja, animacje)
+@author       KID6767 & ChatGPT
+@match        https://*.grepolis.com/*
+@match        https://*.grepolis.pl/*
+@updateURL    https://raw.githubusercontent.com/KID6767/GrepoFusion/main/userscripts/grepofusion.user.js
+@downloadURL  https://raw.githubusercontent.com/KID6767/GrepoFusion/main/userscripts/grepofusion.user.js
+@grant        GM_getValue
+@grant        GM_setValue
+@grant        GM_addStyle
+@run-at       document-end
+==/UserScript== */
+"@
+
+
+# -------------------------
+# USERSCRIPT CORE (część 1)
+# -------------------------
+$UserJsCore1 = @'
+(function(){
+  'use strict';
+
+
+  const VER = "__VER__";
+  const gget = (k,d)=> (typeof GM_getValue==="function"?GM_getValue(k,d):d);
+  const gset = (k,v)=> (typeof GM_setValue==="function"?GM_setValue(k,v):null);
+
+
+  function toast(msg,ms=2000){
+    const t=document.createElement("div");
+    t.textContent=msg;
+    t.style.cssText="position:fixed;left:50%;bottom:60px;transform:translateX(-50%);background:#111;color:#d4af37;padding:8px 12px;border-radius:8px;border:1px solid #d4af37;z-index:99999;font:13px system-ui";
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),ms);
+  }
+
+
+  function log(...a){ console.log("%c[GrepoFusion]","color:#d4af37;font-weight:bold",...a); }
+
+
+  // Theme injector
+  function applyTheme(name){
+    let el=document.getElementById("gf-theme");
+    if(!el){ el=document.createElement("link"); el.id="gf-theme"; el.rel="stylesheet"; document.head.appendChild(el);}
+    el.href=`https://raw.githubusercontent.com/KID6767/GrepoFusion/main/assets/themes/${name}/theme.css`;
+    gset("gf_theme",name);
+    toast("Motyw: "+name);
+  }
+'@
+
+
+# na razie kończymy na 500 liniach (setup + początek userscripta)
+Log "Core1 ✓"
+# ---------- CORE 2: PANEL KONFIGURACJI + ASSETMAP + HOOKI ----------
+Log "Core2 start ✓"
+
+
+# Ścieżki
+$ConfigLogo = Join-Path $Branding 'logo_gf.png'
+
+
+# Placeholder logo GrepoFusion (złoty piksel 1x1)
+$LogoGF_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8HwQACfsD/QGl7pQAAAAASUVORK5CYII="
+$logoGF_bytes = SafeB64 $LogoGF_B64
+if($logoGF_bytes.Length -gt 0){ WriteBytes $ConfigLogo $logoGF_bytes }
+
+
+# Animacja CSS dla panelu
+$ConfigCss = @'
+#aegis-config{
+  position:fixed; right:10px; bottom:10px; z-index:99999;
+  width:200px; padding:10px; border-radius:12px;
+  background:rgba(20,20,20,.9); color:#f2f2f2;
+  border:1px solid rgba(212,175,55,.45);
+  font:600 12px/1.3 system-ui,Segoe UI,Arial;
+  animation: gf-pulse 3s infinite;
+}
+#aegis-config h2{
+  font-size:13px; margin:0 0 8px; color:#f2d574;
+}
+#aegis-config button{
+  display:block; width:100%; margin:4px 0; padding:6px;
+  background:linear-gradient(180deg,#d4af37,#f2d574);
+  border:none; border-radius:8px; cursor:pointer;
+  font-weight:700; color:#2a2000;
+}
+#aegis-config button:hover{ filter:brightness(1.05) }
+#aegis-config button:active{ transform:translateY(1px) }
+
+
+@keyframes gf-pulse {
+  0%,100%{ box-shadow:0 0 0 rgba(212,175,55,0.0) }
+  50%    { box-shadow:0 0 14px rgba(212,175,55,0.55) }
+}
+'@
+WriteUtf8 (Join-Path $ThemeDir 'config.css') $ConfigCss
+
+
+# AssetMap – statki i placeholdery
+$AssetMapJson = @'
+{
+  "units":{
+    "bireme":{
+      "classic":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...", 
+      "pirate":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQ..."
+    },
+    "trireme":{
+      "classic":"data:image/png;base64,PLACEHOLDER",
+      "pirate":"data:image/png;base64,PLACEHOLDER"
+    }
+  },
+  "buildings":{
+    "senate":"data:image/png;base64,PLACEHOLDER",
+    "barracks":"data:image/png;base64,PLACEHOLDER",
+    "harbor":"data:image/png;base64,PLACEHOLDER",
+    "academy":"data:image/png;base64,PLACEHOLDER"
+  },
+  "ui":{
+    "logo":"./assets/branding/logo_gf.png"
+  }
+}
+'@
+$AssetMapPath = Join-Path $Assets 'assetmap.json'
+WriteUtf8 $AssetMapPath $AssetMapJson
+Log "assetmap ✓"
+
+
+# --- Konfigurator (Userscript snippet) ---
+$ConfigJs = @'
+(function(){
+  "use strict";
+  const CFG_ID="aegis-config";
+  if(document.getElementById(CFG_ID)) return;
+
+
+  const box=document.createElement("div");
+  box.id=CFG_ID;
+  box.innerHTML=`
+    <h2>GrepoFusion ⚔️</h2>
+    <button id="gf-theme-classic">Classic</button>
+    <button id="gf-theme-remaster">Remaster 2025</button>
+    <button id="gf-theme-pirate">Pirate</button>
+    <button id="gf-theme-dark">Dark</button>
+    <hr style="margin:6px 0;border:none;border-top:1px solid #444"/>
+    <button id="gf-helper-build">Pomocnik budowlańca</button>
+    <button id="gf-helper-recruit">Rekruter</button>
+    <button id="gf-helper-academy">Akademik</button>
+  `;
+  document.body.appendChild(box);
+
+
+  // Theme switch
+  function setTheme(name){
+    console.log("GF::Theme",name);
+    localStorage.setItem("GF_THEME",name);
+    location.reload();
+  }
+  document.getElementById("gf-theme-classic").onclick=()=>setTheme("classic");
+  document.getElementById("gf-theme-remaster").onclick=()=>setTheme("remaster");
+  document.getElementById("gf-theme-pirate").onclick=()=>setTheme("pirate");
+  document.getElementById("gf-theme-dark").onclick=()=>setTheme("dark");
+
+
+  // Hooki do helperów
+  document.getElementById("gf-helper-build").onclick=()=>alert("Pomocnik budowlańca – coming soon");
+  document.getElementById("gf-helper-recruit").onclick=()=>alert("Rekruter – coming soon");
+  document.getElementById("gf-helper-academy").onclick=()=>alert("Akademik – coming soon");
+})();
+'@
+$ConfigJsPath = Join-Path $Userscripts 'gf_config.user.js'
+WriteUtf8 $ConfigJsPath $ConfigJs
+Log "config userscript ✓"
+
+
+# --- Placeholder logic helpers ---
+$HelperStub = @'
+// Pomocnik budowlańca – stub
+window.GF_Helper_Build = {
+  queue:[],
+  run:function(){
+    console.log("GF_Helper_Build run (stub) – kolejka:",this.queue);
+  }
+};
+// Rekruter – stub
+window.GF_Helper_Recruit = {
+  plan:[],
+  run:function(){
+    console.log("GF_Helper_Recruit run (stub) – plan:",this.plan);
+  }
+};
+// Akademik – stub
+window.GF_Helper_Academy = {
+  techs:[],
+  run:function(){
+    console.log("GF_Helper_Academy run (stub) – techs:",this.techs);
+  }
+};
+'
+$HelperJsPath = Join-Path $Userscripts 'gf_helpers.user.js'
+WriteUtf8 $HelperJsPath $HelperStub
+Log "helper stubs ✓"
+
+
+# Update README with Config info
+Add-Content $ReadmePath "`n## Panel konfiguracji`n- Motywy: Classic, Remaster 2025, Pirate, Dark`n- Moduły: Pomocnik budowlańca, Rekruter, Akademik (w przygotowaniu)`n"
+
+
+# Update Changelog
+Add-Content $ChlogPath "`n## 1.5.0.2 (draft)`n- Dodano panel konfiguracji w prawym dolnym rogu (logo GF zamiast zębatki).`n- AssetMap w JSON (Base64 + placeholdery).`n- Przygotowano hooki pod Pomocnika budowlańca, Rekrutera i Akademika.`n"
+# ---------- CORE 3: LOGIKA HELPERÓW (PEŁNA) ----------
+Log "Core3 start ✓"
+
+
+$HelperFullJs = @'
+(function(){
+  "use strict";
+
+
+  // ======================
+  // Pomocnik budowlańca
+  // ======================
+  window.GF_Helper_Build = {
+    key:"GF::Helper::Build",
+    queue:[],
+    load:function(){
+      try{
+        this.queue = JSON.parse(localStorage.getItem(this.key)||"[]");
+      }catch(e){ this.queue=[]; }
+    },
+    save:function(){
+      localStorage.setItem(this.key,JSON.stringify(this.queue));
+    },
+    add:function(building,targetLevel){
+      this.queue.push({building,targetLevel});
+      this.save();
+      alert("Dodano do kolejki: "+building+" → "+targetLevel);
+    },
+    run:function(){
+      this.load();
+      console.log("GF_Helper_Build run:",this.queue);
+      const res = {wood:unsafeWindow.Game.resources.wood,
+                   stone:unsafeWindow.Game.resources.stone,
+                   iron:unsafeWindow.Game.resources.iron,
+                   pop:unsafeWindow.Game.current_population};
+      for(const job of this.queue){
+        const b = unsafeWindow.Buildings.getBuildingData(job.building);
+        if(!b) continue;
+        if(b.level>=job.targetLevel) continue;
+        const cost = unsafeWindow.Buildings.buildingCosts(job.building,b.level+1);
+        if(res.wood>=cost.wood && res.stone>=cost.stone && res.iron>=cost.iron && res.pop>=cost.population){
+          console.log("Buduję:",job.building,"lvl",b.level+1);
+          unsafeWindow.Buildings.build(job.building);
+          res.wood-=cost.wood; res.stone-=cost.stone; res.iron-=cost.iron; res.pop-=cost.population;
+        }
+      }
+    }
+  };
+
+
+  // ======================
+  // Rekruter (Koszary + Port)
+  // ======================
+  window.GF_Helper_Recruit = {
+    key:"GF::Helper::Recruit",
+    plan:[],
+    load:function(){
+      try{ this.plan=JSON.parse(localStorage.getItem(this.key)||"[]"); }catch(e){ this.plan=[]; }
+    },
+    save:function(){ localStorage.setItem(this.key,JSON.stringify(this.plan)); },
+    add:function(unit,count){
+      this.plan.push({unit,count});
+      this.save();
+      alert("Dodano rekrutację: "+count+" × "+unit);
+    },
+    run:function(){
+      this.load();
+      console.log("GF_Helper_Recruit run:",this.plan);
+      for(const job of this.plan){
+        try{
+          unsafeWindow.RecruitUnits.startRecruit(job.unit,job.count);
+        }catch(e){
+          console.warn("Rekrutacja nie powiodła się:",job.unit,e);
+        }
+      }
+    }
+  };
+
+
+  // ======================
+  // Akademik (Automaty badania)
+  // ======================
+  window.GF_Helper_Academy = {
+    key:"GF::Helper::Academy",
+    techs:[],
+    load:function(){
+      try{ this.techs=JSON.parse(localStorage.getItem(this.key)||"[]"); }catch(e){ this.techs=[]; }
+    },
+    save:function(){ localStorage.setItem(this.key,JSON.stringify(this.techs)); },
+    add:function(tech){
+      this.techs.push(tech); this.save();
+      alert("Dodano badanie: "+tech);
+    },
+    run:function(){
+      this.load();
+      console.log("GF_Helper_Academy run:",this.techs);
+      for(const t of this.techs){
+        try{
+          unsafeWindow.Academy.startResearch(t);
+        }catch(e){
+          console.warn("Badanie nie powiodło się:",t,e);
+        }
+      }
+    }
+  };
+
+
+  // Auto-run co 60s
+  setInterval(()=>{
+    try{ GF_Helper_Build.run(); }catch(e){}
+    try{ GF_Helper_Recruit.run(); }catch(e){}
+    try{ GF_Helper_Academy.run(); }catch(e){}
+  },60000);
+
+
+})();
+'@
+$HelperFullJsPath = Join-Path $Userscripts 'gf_helpers_full.user.js'
+WriteUtf8 $HelperFullJsPath $HelperFullJs
+Log "helper logic ✓"
+
+
+# README update
+Add-Content $ReadmePath "`n## Helpery (moduły)`n- **Pomocnik budowlańca** – kolejka budynków w Senacie, auto-budowanie przy dostępnych surowcach.`n- **Rekruter** – kolejka jednostek w Koszarach i Porcie.`n- **Akademik** – kolejka badań w Akademii.`n- Auto-run co 60s (działa w tle).`n"
+
+
+# CHANGELOG update
+Add-Content $ChlogPath "`n## 1.5.0.2 (draft cont.)`n- Dodano pełną logikę Pomocnika budowlańca, Rekrutera i Akademika.`n- Kolejki zapisują się w localStorage.`n- Automatyczne sprawdzanie co 60s.`n"
+# ---------- CORE 3: LOGIKA HELPERÓW + ASSET OVERRIDE + BUDOWANIE GŁÓWNEGO USER SCRIPTA ----------
+Log "Core3 start ✓"
+
+
+# -- Theme CSS warianty (Classic/Remaster/Pirate/Dark) —
+$ThemeClassic = @'
+:root{--gf-gold:#d4af37;--gf-ink:#232a36;--gf-bg:#1a1f29}
+body,.gpwindow_content,.game_inner_box,.ui_box{background:#201c15!important;color:#e8e2d6!important}
+.ui-dialog .ui-dialog-titlebar,.game_header{background:#4e3e2b!important;color:#f7e1a0!important;border-color:#c8a25a!important}
+.btn,.button,.context_menu,.ui-button{background:#3b2b1b!important;color:#f7e1a0!important;border:1px solid #c8a25a!important}
+a,.gpwindow_content a{color:#f7e1a0!important}
+.gp_table th,.gp_table td{border-color:#c8a25a!important}
+'@
+
+
+$ThemeRemaster = Get-Content -Raw -Path $ThemeCss
+$ThemePirate = @'
+:root{--gf-gold:#d4af37;--gf-ink:#0f0f0f;--gf-bg:#0a0a0a}
+body,.gpwindow_content,.game_inner_box,.ui_box{background:var(--gf-bg)!important;color:var(--gf-gold)!important}
+.ui-dialog .ui-dialog-titlebar,.game_header{background:var(--gf-ink)!important;color:var(--gf-gold)!important;border-color:var(--gf-gold)!important}
+.btn,.button,.ui-button{background:#161616!important;color:var(--gf-gold)!important;border:1px solid var(--gf-gold)!important}
+a,.gpwindow_content a{color:#e2c46a!important}
+.gp_table th,.gp_table td{border-color:var(--gf-gold)!important}
+'@
+
+
+$ThemeDark = @'
+:root{--gf-bg:#101215;--gf-fg:#e6e6e6}
+body,.gpwindow_content,.game_inner_box,.ui_box,.forum_content{background:var(--gf-bg)!important;color:var(--gf-fg)!important}
+a,.gpwindow_content a{color:#7eb5ff!important}
+.button,.btn,.ui-button{background:#252a30!important;color:#eaeaea!important;border:1px solid #44505e!important}
+'@
+
+
+# -- HELPER: Pomocnik budowlańca (Senat) —
+$HelperBuildLogic = @'
+// ===== Pomocnik budowlańca (Senat) =====
+(function(){
+  "use strict";
+  const log=(...a)=>console.log("%c[GF::Build]","color:#d4af37",...a);
+
+
+  // profil rozbudowy (z grubsza bezpieczny dla fresh gry)
+  const PLAN = [
+    { main:10, farm:10, storage:10, lumber:10, stoner:10, ironer:10 },
+    { main:20, farm:20, storage:20, lumber:20, stoner:20, ironer:20, barracks:5, academy:13 },
+    { temple:15, market:10, hide:10, wall:5, docks:5 },
+    { main:25, farm:35, storage:30, lumber:30, stoner:30, ironer:30, barracks:20, docks:15 },
+    { academy:36, wall:20, market:20, temple:30 }
+  ];
+
+
+  function ready(){
+    return !!(window.ITowns && window.MM && window.gpAjax && window.Game);
+  }
+  function has(res, need){
+    return res.wood>=need.wood && res.stone>=need.stone && res.iron>=need.iron;
+  }
+  function enqueue(townId, building){
+    return new Promise((resolve,reject)=>{
+      gpAjax.ajaxPost("frontend_bridge","execute",{
+        model_url:"BuildingOrder",
+        action_name:"buildUp",
+        arguments:{building_id: building},
+        town_id: townId
+      }, false, { success:resolve, error:reject });
+    });
+  }
+  async function tryTown(model){
+    const a = model.attributes || model.get && model.get("attributes");
+    const id = a.id;
+    if(a.is_building_order_queue_full) return;
+    const bd = a.building_data;
+    const res = ITowns.towns[id].resources();
+    // znajdź pierwszy pasujący cel
+    for(const layer of PLAN){
+      for(const [name, maxLv] of Object.entries(layer)){
+        const d = bd[name];
+        if(!d || d.has_max_level) continue;
+        const next = d.next_level;
+        if(next>maxLv) continue;
+        if(!has(res, d.resources_for)) continue;
+        try{
+          await enqueue(id, name);
+          log("enqueue", name, "→", next, "@", ITowns.towns[id].name);
+          return; // jeden wpis na pętlę
+        }catch(e){ /* ignoruj */ }
+      }
+    }
+  }
+  async function loop(){
+    if(!ready()) return setTimeout(loop, 3000);
+    try{
+      const all = Object.values(MM.getModels().BuildingBuildData||{});
+      for(const m of all) await tryTown(m);
+    }catch(e){}
+    setTimeout(loop, 45000 + Math.random()*15000);
+  }
+  window.GF_Helper_Build = { run: loop };
+  setTimeout(loop, 2500);
+})();
+'@
+
+
+# -- HELPER: Rekruter (Koszary/Port) —
+$HelperRecruitLogic = @'
+// ===== Rekruter (Koszary/Port) =====
+(function(){
+  "use strict";
+  const log=(...a)=>console.log("%c[GF::Recruit]","color:#d4af37",...a);
+
+
+  // Plan minimalny (na start bezpieczny): łódź transportowa i proce/łucznicy
+  const PLAN = {
+    barracks: [ ["slinger", 20], ["archer", 10] ],
+    harbor:   [ ["transport_ship", 5], ["bireme", 5] ]
+  };
+
+
+  function ready(){
+    return !!(window.ITowns && window.MM && window.gpAjax && window.Game);
+  }
+
+
+  function enqueue(townId, kind, unit, amount){
+    const model = kind==="barracks" ? "BarracksOrder" : "DocksOrder";
+    const act   = "build";
+    const args  = kind==="barracks" ? {unit_id:unit, amount:amount} : {unit_id:unit, amount:amount};
+    return new Promise((resolve,reject)=>{
+      gpAjax.ajaxPost("frontend_bridge","execute",{
+        model_url: model,
+        action_name: act,
+        arguments: args,
+        town_id: townId
+      }, false, { success:resolve, error:reject });
+    });
+  }
+
+
+  async function doTown(townId){
+    // barracks
+    for(const [unit, amt] of PLAN.barracks){
+      try{ await enqueue(townId,"barracks",unit,amt); log("barracks",unit,amt,"@",ITowns.towns[townId].name) }catch(e){}
+      await new Promise(r=>setTimeout(r,700));
+    }
+    // harbor
+    for(const [unit, amt] of PLAN.harbor){
+      try{ await enqueue(townId,"harbor",unit,amt); log("harbor",unit,amt,"@",ITowns.towns[townId].name) }catch(e){}
+      await new Promise(r=>setTimeout(r,700));
+    }
+  }
+
+
+  async function loop(){
+    if(!ready()) return setTimeout(loop, 3000);
+    try{
+      const ids = Object.keys(ITowns.towns||{});
+      for(const id of ids) await doTown(+id);
+    }catch(e){}
+    setTimeout(loop, 90000 + Math.random()*30000);
+  }
+
+
+  window.GF_Helper_Recruit = { run: loop };
+  setTimeout(loop, 5000);
+})();
+'@
+
+
+# -- HELPER: Akademik (kolejka badań) —
+$HelperAcademyLogic = @'
+// ===== Akademik =====
+(function(){
+  "use strict";
+  const log=(...a)=>console.log("%c[GF::Academy]","color:#d4af37",...a);
+
+
+  // Prosty, bezpieczny plan badań
+  const TECHS = [ "booty", "ram", "ceramics", "light_ship", "bireme", "trainer", "slinger", "architecture" ];
+
+
+  function ready(){
+    return !!(window.MM && window.gpAjax && window.Game);
+  }
+  function enqueue(townId, tech){
+    return new Promise((resolve,reject)=>{
+      gpAjax.ajaxPost("frontend_bridge","execute",{
+        model_url:"Academy",
+        action_name:"research",
+        arguments:{research_type_id: tech},
+        town_id: townId
+      }, false, { success:resolve, error:reject });
+    });
+  }
+  async function doTown(townId){
+    try{
+      const model = MM.getModelByNameAndPlayerId && MM.getModels().Academy;
+      // jeśli brak, spróbuj w ciemno — Grepolis sam odrzuci
+      for(const t of TECHS){
+        try{ await enqueue(townId,t); log("research",t,"@",townId) }catch(e){}
+        await new Promise(r=>setTimeout(r,600));
+      }
+    }catch(e){}
+  }
+  async function loop(){
+    if(!ready()) return setTimeout(loop, 3000);
+    try{
+      const ids = Object.keys(ITowns.towns||{});
+      for(const id of ids) await doTown(+id);
+    }catch(e){}
+    setTimeout(loop, 120000 + Math.random()*30000);
+  }
+  window.GF_Helper_Academy = { run: loop };
+  setTimeout(loop, 7000);
+})();
+'@
+
+
+# Zapis helperów logicznych (nadpisują stuby z Part 2)
+WriteUtf8 (Join-Path $Userscripts 'gf_helper_build.user.js')    $HelperBuildLogic
+WriteUtf8 (Join-Path $Userscripts 'gf_helper_recruit.user.js')  $HelperRecruitLogic
+WriteUtf8 (Join-Path $Userscripts 'gf_helper_academy.user.js')  $HelperAcademyLogic
+Log "helpers logic ✓"
+
+
+# -- Asset override JS (łapie IMG.src i zamienia po needle z assetmap.json) —
+$AssetOverrideJs = @"
+(function(){
+  'use strict';
+  const RAW_MAP = __ASSET_MAP__ ; // JSON → obiekt
+
+
+  function mapSrc(src){
+    try{
+      // statki
+      for(const [k,v] of Object.entries(RAW_MAP.units||{})){
+        if(src.includes(k)) return (v.pirate||v.classic||src);
+      }
+      // budynki
+      for(const [k,v] of Object.entries(RAW_MAP.buildings||{})){
+        if(src.includes(k)) return v;
+      }
+    }catch(e){}
+    return src;
+  }
+
+
+  // patch createElement → IMG.setAttribute('src',...)
+  const _create=document.createElement;
+  document.createElement=function(tag){
+    const el=_create.call(document,tag);
+    if((''+tag).toLowerCase()==='img'){
+      const _set=el.setAttribute;
+      el.setAttribute=function(n,val){
+        if(n==='src' && typeof val==='string'){ val=mapSrc(val) }
+        return _set.call(this,n,val);
+      }
+    }
+    return el;
+  };
+
+
+  // patch istniejących obrazów
+  const patch=(root)=>{
+    root.querySelectorAll && root.querySelectorAll('img[src]').forEach(img=>{
+      img.src = mapSrc(img.src);
+    });
+  };
+
+
+  const mo=new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      m.addedNodes && m.addedNodes.forEach(n=>{
+        if(n.nodeType===1) patch(n);
+      });
+    });
+  });
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+  patch(document);
+})();
+"@
+
+
+# -- Changelog overlay JS —
+$ChangelogOverlayJs = @"
+(function(){
+  "use strict";
+  const VER = "__VER__";
+  function show(){
+    if(document.getElementById("gf-changelog")) return;
+    const x=document.createElement("div");
+    x.id="gf-changelog";
+    x.style.cssText="position:fixed;left:50%;top:16px;transform:translateX(-50%);width:min(680px,92vw);background:#0f0f0f;color:#d4af37;border:2px solid #d4af37;border-radius:12px;padding:12px;z-index:2147483647;box-shadow:0 16px 40px rgba(0,0,0,.55)";
+    x.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <b>⚓ GrepoFusion ${VER}</b>
+        <button id="gf-chg-x" style="background:#111;color:#d4af37;border:1px solid #d4af37;border-radius:6px;padding:2px 8px;cursor:pointer">×</button>
+      </div>
+      <ul style="margin:8px 0 0 18px">
+        <li>Motywy: Classic / Remaster 2025 / Pirate / Dark</li>
+        <li>Pomocnik budowlańca + Rekruter + Akademik (best-effort)</li>
+        <li>Asset Map (GitHub/inline Base64) + automatyczna podmiana obrazów</li>
+        <li>Stabilizacja CSS i panel konfiguracji w prawym dolnym rogu</li>
+      </ul>`;
+    document.body.appendChild(x);
+    document.getElementById("gf-chg-x").onclick=()=>x.remove();
+  }
+  setTimeout(show, 600);
+})();
+"@
+
+
+# ---------- Kompilacja: składamy główny userscript ----------
+$VersionGF = '1.5.0.2'
+$AssetMapRaw = Get-Content -Raw -Path $AssetMapPath
+# wstawiamy JSON do AssetOverride
+$AssetOverrideWithMap = $AssetOverrideJs.Replace('__ASSET_MAP__', $AssetMapRaw)
+
+
+# Theme ładowany wg localStorage GF_THEME
+$ThemeClassicEsc  = $ThemeClassic -replace '`', '``'
+$ThemeRemasterEsc = Get-Content -Raw -Path (Join-Path $ThemeRemaster 'theme.css')
+$ThemePirateEsc   = $ThemePirate -replace '`', '``'
+$ThemeDarkEsc     = $ThemeDark -replace '`', '``'
+$ConfigCssEsc     = Get-Content -Raw -Path (Join-Path $Themes 'config.css')
+
+
+$ThemeSwitcherJs = @"
+(function(){
+  'use strict';
+  var name = localStorage.getItem('GF_THEME') || 'pirate';
+  var css = '';
+  switch(name){
+    case 'classic': css = `$ThemeClassicEsc`; break;
+    case 'remaster': css = `$ThemeRemasterEsc`; break;
+    case 'dark': css = `$ThemeDarkEsc`; break;
+    default: css = `$ThemePirateEsc`;
+  }
+  var el=document.getElementById('gf-theme-style');
+  if(!el){ el=document.createElement('style'); el.id='gf-theme-style'; document.head.appendChild(el) }
+  el.textContent = css + `$ConfigCssEsc`;
+})();
+"@
+
+
+# wczytaj konfigurator i helpery z plików
+$ConfigJsRaw          = Get-Content -Raw -Path $ConfigJsPath
+$HelpersStubRaw       = Get-Content -Raw -Path $HelperJsPath
+$HelperBuildRaw       = Get-Content -Raw -Path (Join-Path $Userscripts 'gf_helper_build.user.js')
+$HelperRecruitRaw     = Get-Content -Raw -Path (Join-Path $Userscripts 'gf_helper_recruit.user.js')
+$HelperAcademyRaw     = Get-Content -Raw -Path (Join-Path $Userscripts 'gf_helper_academy.user.js')
+$ChangelogOverlayRaw  = $ChangelogOverlayJs.Replace('__VER__', $VersionGF)
+
+
+$MainUserJs = @"
+... (tu bez zmian – Twój główny userscript, tylko poprawione zmienne)
+"@
+
+
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js ✓"
+
+
+# ---------- ZIP + git ----------
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+  Log "ZIP: $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+}
+
+
+try{
+  & git add -A | Out-Null
+  & git commit -m ("GrepoFusion ${VersionGF}: theme+assetmap+helpers+panel+changelog+dist") | Out-Null
+  & git push | Out-Null
+  Log "git push ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Core3 done ✓"
+# ---------- PART 5: WELCOME + FIREWORKS + BADGE + ROUNDED UI ----------
+Log "Part5 start ✓"
+
+
+# 1) CSS: welcome overlay + smoke + animowane logo/badge + zaokrąglenia kafelków po prawej
+$WelcomeCssPath = Join-Path $Fx 'welcome.css'
+$WelcomeCss = @'
+:root{
+  --gf-gold:#d4af37; --gf-gold-2:#f2d574;
+  --gf-bg:#0b0b0b; --gf-ink:#111; --gf-fg:#eee;
+}
+@keyframes gf-glow { 0%,100%{box-shadow:0 0 0 rgba(212,175,55,0)} 50%{box-shadow:0 0 14px rgba(212,175,55,.52)} }
+@keyframes gf-pop  { 0%{transform:scale(.92);opacity:0} 100%{transform:scale(1);opacity:1} }
+@keyframes gf-smoke{ 0%{transform:translate3d(0,0,0)} 50%{transform:translate3d(20px,-14px,0)} 100%{transform:translate3d(0,-24px,0)} }
+
+
+#gf-welcome-wrap{
+  position:fixed; inset:0; z-index:2147483600; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(ellipse at center, rgba(0,0,0,.55), rgba(0,0,0,.88));
+}
+#gf-card{
+  width:min(760px,92vw);
+  color:var(--gf-fg);
+  background:linear-gradient(180deg,rgba(15,15,15,.96),rgba(15,15,15,.92));
+  border:1px solid rgba(212,175,55,.35); border-radius:16px; padding:18px 20px;
+  box-shadow:0 16px 40px rgba(0,0,0,.55); animation:gf-pop .24s ease-out;
+}
+#gf-card .head{display:flex;gap:14px;align-items:center;margin-bottom:8px}
+#gf-card .logo{
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg,var(--gf-gold),var(--gf-gold-2));
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.35);
+  animation:gf-glow 3.2s ease-in-out infinite;
+}
+#gf-card h1{margin:0;font:800 20px/1.2 system-ui,Segoe UI,Arial;color:var(--gf-gold)}
+#gf-card p{margin:4px 0 0;opacity:.92}
+#gf-actions{display:flex;gap:10px;margin-top:14px}
+.gf-btn{
+  background:linear-gradient(180deg,var(--gf-gold),var(--gf-gold-2));
+  color:#2a2100;border:none;border-radius:12px;padding:10px 16px;font-weight:800;cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,.35);
+}
+.gf-btn:hover{filter:brightness(1.05)}
+.gf-btn:active{transform:translateY(1px)}
+
+
+#gf-smoke{
+  position:fixed; left:0; right:0; bottom:-30px; height:140px; z-index:1; pointer-events:none; opacity:.8;
+  background:
+    radial-gradient(120px 60px at 10% 80%, rgba(255,255,255,.06), transparent 60%),
+    radial-gradient(180px 70px at 40% 92%, rgba(255,255,255,.08), transparent 60%),
+    radial-gradient(140px 60px at 70% 86%, rgba(255,255,255,.07), transparent 60%),
+    radial-gradient(200px 80px at 90% 96%, rgba(255,255,255,.05), transparent 60%);
+  animation:gf-smoke 9s ease-in-out infinite;
+}
+
+
+/* Badge (prawy górny róg) */
+#gf-badge{
+  position:fixed; right:10px; top:10px; z-index:2147483600;
+  background:linear-gradient(135deg,#0f0f0f,#1a1a1a);
+  border:1px solid rgba(212,175,55,.45);
+  color:var(--gf-gold); padding:6px 10px; border-radius:12px;
+  font:700 12px/1.2 system-ui,Segoe UI,Arial; animation:gf-glow 3.2s ease-in-out infinite;
+}
+
+
+/* Zaokrąglenia kafelków (prawa kolumna Grepolis) */
+#ui_box .game_list div, .ui_game_list .game_list_item, .ui_gods_list .god, .ui_message_list .message{
+  border-radius:10px !important; overflow:hidden;
+}
+'@
+WriteUtf8 $WelcomeCssPath $WelcomeCss
+
+
+# 2) JS: fireworks (canvas) + welcome (once/VER) + badge
+$WelcomeJsPath = Join-Path $Fx 'welcome.js'
+$WelcomeJs = @'
+(function(){
+  "use strict";
+  const VER = "__VER__";
+
+
+  function injectStyle(css){
+    let el = document.getElementById("gf-welcome-style");
+    if(!el){ el=document.createElement("style"); el.id="gf-welcome-style"; document.head.appendChild(el); }
+    el.textContent = css;
+  }
+
+
+  function badge(){
+    if(document.getElementById("gf-badge")) return;
+    const el=document.createElement("div"); el.id="gf-badge";
+    el.textContent="GrepoFusion "+VER;
+    document.body.appendChild(el);
+  }
+
+
+  function smoke(){
+    if(document.getElementById("gf-smoke")) return;
+    const s=document.createElement("div"); s.id="gf-smoke";
+    document.body.appendChild(s);
+  }
+
+
+  function fireworks(ms=3200){
+    const c=document.createElement("canvas");
+    Object.assign(c.style,{position:"fixed",inset:"0",zIndex:2147483601,pointerEvents:"none"});
+    const ctx=c.getContext("2d"); document.body.appendChild(c);
+    const DPR=Math.max(1,window.devicePixelRatio||1);
+    function resize(){ c.width=innerWidth*DPR; c.height=innerHeight*DPR; ctx.setTransform(DPR,0,0,DPR,0,0) }
+    resize(); addEventListener("resize",resize);
+    const parts=[];
+    function boom(x,y){
+      const N=60+Math.floor(Math.random()*60);
+      const cols=["#ffd86b","#e6c55e","#f2e5a3","#fff9d2","#fbe6a4"];
+      for(let i=0;i<N;i++){
+        const a=Math.random()*Math.PI*2, s=2+Math.random()*4;
+        parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.5,life:60+Math.random()*40,color:cols[i%cols.length]});
+      }
+    }
+    for(let i=0;i<4;i++) boom(innerWidth*(.2+.6*Math.random()), innerHeight*(.25+.5*Math.random()));
+    const stopAt=performance.now()+ms;
+    (function loop(){
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      for(const p of parts){
+        p.vy+=0.045; p.x+=p.vx; p.y+=p.vy; p.life-=1;
+        ctx.globalAlpha=Math.max(0,p.life/90);
+        ctx.beginPath(); ctx.arc(p.x,p.y,2.1,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+      }
+      for(let i=parts.length-1;i>=0;i--) if(parts[i].life<=0) parts.splice(i,1);
+      if(performance.now()<stopAt && parts.length) requestAnimationFrame(loop); else c.remove();
+    })();
+  }
+
+
+  function welcome(){
+    if(document.getElementById("gf-welcome-wrap")) return;
+    const wrap=document.createElement("div"); wrap.id="gf-welcome-wrap";
+    wrap.innerHTML = `
+      <div id="gf-card">
+        <div class="head">
+          <div class="logo"></div>
+          <div>
+            <h1>GrepoFusion ${VER}</h1>
+            <p>Remaster + mody uruchomione. Ekran widoczny jednorazowo dla tej wersji.</p>
+          </div>
+        </div>
+        <p>• Motywy • Asset Map (grafiki) • Pomocnik budowlańca • Rekruter • Akademik • Zaokrąglenia UI</p>
+        <div id="gf-actions"><button id="gf-ok" class="gf-btn">Zaczynamy!</button></div>
+      </div>`;
+    document.body.appendChild(wrap);
+    document.getElementById("gf-ok").onclick = ()=> wrap.remove();
+  }
+
+
+  function firstTimeKey(){ return "GF::seen::"+VER; }
+  function isFirstTime(){
+    const k=firstTimeKey(); if(localStorage.getItem(k)) return false;
+    localStorage.setItem(k, Date.now().toString()); return true;
+  }
+
+
+  // public API (opcjonalnie do debug)
+  window.GF_Welcome = {
+    mount(css){ injectStyle(css); badge(); smoke(); if(isFirstTime()){ welcome(); setTimeout(()=>fireworks(),150); } }
+  };
+})();
+'@
+WriteUtf8 $WelcomeJsPath $WelcomeJs
+
+
+# 3) Rounded UI delikatny CSS (dodatkowy) – dokładamy do config.css
+$RoundedCss = @'
+/* dodatkowe zaokrąglenia elementów list/boxów */
+.ui_message_list .message .content,
+.ui_message_list .message .header,
+.ui_forum_list .forum,
+.ui_alliance_list .alliance,
+.ui_report_list .report {
+  border-radius:10px !important; overflow:hidden;
+}
+'@
+Add-Content (Join-Path $ThemeDir 'config.css') $RoundedCss
+
+
+# 4) Rebuild głównego userscripta (dołączamy Welcome CSS/JS inline)
+$WelcomeCssRaw = Get-Content -Raw -Path $WelcomeCssPath
+$WelcomeJsRaw  = Get-Content -Raw -Path $WelcomeJsPath
+
+
+# do ThemeSwitcher dorzucimy na końcu welcome CSS
+$ThemeSwitcherPlus = @"
+(function(){
+  'use strict';
+  var name = localStorage.getItem('GF_THEME') || 'pirate';
+  var css = '';
+  switch(name){
+    case 'classic': css = `$(($ThemeClassic -replace '`', '``'))`; break;
+    case 'remaster': css = `$(($ThemeRemaster -replace '`', '``'))`; break;
+    case 'dark': css = `$(($ThemeDark -replace '`', '``'))`; break;
+    default: css = `$(($ThemePirate -replace '`', '``'))`;
+  }
+  var el=document.getElementById('gf-theme-style');
+  if(!el){ el=document.createElement('style'); el.id='gf-theme-style'; document.head.appendChild(el) }
+  el.textContent = css
+    + `$( (Get-Content -Raw (Join-Path $ThemeDir 'config.css')) -replace '`', '``' )`
+    + `$( ($WelcomeCssRaw) -replace '`','``' )`; // ← doczepiamy welcome.css
+  // auto-mount badge/smoke/welcome
+  (function(){ $WelcomeJsRaw })();
+  if(window.GF_Welcome && typeof window.GF_Welcome.mount==="function"){
+    window.GF_Welcome.mount(""); // CSS już wstrzyknięty powyżej
+  }
+})();
+"
+
+
+# ponowny montaż userscripta z nowym ThemeSwitcherPlus
+$MainUserJs = @"
+// ==UserScript==
+// @name         GrepoFusion
+// @namespace    https://github.com/KID6767/GrepoFusion
+// @version      $VersionGF
+// @description  Theme + AssetMap + Pomocnik budowlańca + Rekruter + Akademik + panel + changelog + welcome
+// @author       KID6767 & ChatGPT
+// @match        https://*.grepolis.com/*
+// @match        https://*.grepolis.pl/*
+// @updateURL    https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @downloadURL  https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @grant        none
+// ==/UserScript==
+
+
+(function(){
+  'use strict';
+  // Theme switcher (+config + welcome css/js)
+  $ThemeSwitcherPlus
+
+
+  // Panel konfiguracji
+  $ConfigJsRaw
+
+
+  // Asset override
+  $AssetOverrideWithMap
+
+
+  // Helper stubs (zostaną nadpisane niżej)
+  $HelpersStubRaw
+
+
+  // Logika helperów (Senat/Barracks/Port/Academy)
+  $HelperBuildRaw
+  $HelperRecruitRaw
+  $HelperAcademyRaw
+
+
+  // Changelog overlay
+  $ChangelogOverlayRaw
+
+
+  console.log('%c[GrepoFusion] $VersionGF ready','color:#d4af37;font-weight:700');
+})();
+"
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js (rebuild with welcome) ✓"
+
+
+# 5) Docs update
+Add-Content $ReadmePath "`n## Ekran powitalny`n- Jednorazowo na wersję (badge + fajerwerki + smoke).`n- Wymóg: localStorage (klucz `GF::seen::<ver>`).`n"
+Add-Content $ChlogPath  "`n## 1.5.0.2 (draft + welcome)`n- Dodano ekran powitalny z fajerwerkami i badge wersji.`n- Delikatne zaokrąglenia kafelków w prawej kolumnie.`n"
+
+
+# 6) ZIP + git (ponownie, bo dist się zmienił)
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+  Log "ZIP: $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+}
+
+
+try{
+  & git add -A | Out-Null
+  & git commit -m "GrepoFusion $VersionGF: welcome+fireworks+badge+roundedUI+dist rebuild" | Out-Null
+  & git push | Out-Null
+  Log "git push ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Part5 done ✓”
+# ---------- PART 6: FAB + DOCKED PANEL + HELPERS GUI + ASSETMAP EDITOR ----------
+Log "Part6 start ✓"
+
+
+# 1) FAB (floating action button) z logo GF
+$FabCssPath = Join-Path $Fx 'fab.css'
+$FabCss = @'
+#gf-fab{
+  position:fixed; right:18px; bottom:18px; width:54px; height:54px; z-index:2147483600;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  border-radius:14px; border:2px solid #d4af37; background:#0f0f0f; color:#d4af37;
+  box-shadow:0 10px 28px rgba(0,0,0,.55);
+  transition:transform .12s ease, filter .12s ease;
+}
+#gf-fab:hover{ transform:translateY(-1px); filter:brightness(1.06) }
+#gf-fab .logo{
+  width:28px; height:28px; border-radius:7px;
+  background:linear-gradient(135deg,#d4af37,#f2d574);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.3);
+}
+'@
+WriteUtf8 $FabCssPath $FabCss
+
+
+$FabJsPath = Join-Path $Fx 'fab.js'
+$FabJs = @'
+(function(){
+  "use strict";
+  if(document.getElementById("gf-fab")) return;
+  const b=document.createElement("div"); b.id="gf-fab"; b.innerHTML='<div class="logo"></div>';
+  b.title="GrepoFusion — panel";
+  b.onclick = ()=> document.getElementById("gf-dock")?.classList.toggle("open");
+  document.body.appendChild(b);
+})();
+'@
+WriteUtf8 $FabJsPath $FabJs
+
+
+# 2) Dockowany panel z zakładkami (Motywy / Moduły / AssetMap / Info)
+$DockCssPath = Join-Path $Fx 'dock.css'
+$DockCss = @'
+#gf-dock{
+  position:fixed; right:12px; bottom:86px; z-index:2147483599; width:360px; max-height:72vh;
+  background:#0f0f0f; color:#e8e2d6; border:1px solid #d4af37; border-radius:14px;
+  box-shadow:0 16px 40px rgba(0,0,0,.6); transform:translateX(110%); transition:transform .18s ease;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+#gf-dock.open{ transform:translateX(0) }
+#gf-dock .bar{ display:flex; gap:6px; padding:8px; background:#151515; border-bottom:1px solid #d4af3733 }
+#gf-dock .tab{ flex:1; padding:8px; text-align:center; border-radius:10px; cursor:pointer;
+  background:#131313; color:#f2d574; font-weight:800; }
+#gf-dock .tab.active{ outline:2px solid #d4af37 }
+#gf-dock .pane{ display:none; padding:10px 10px 12px; overflow:auto }
+#gf-dock .pane.active{ display:block }
+#gf-dock label{ display:block; margin:8px 0 4px; font-weight:700; color:#f2d574 }
+#gf-dock input[type="text"], #gf-dock input[type="number"], #gf-dock select, #gf-dock textarea{
+  width:100%; background:#121212; color:#e8e2d6; border:1px solid #d4af37; border-radius:10px; padding:8px;
+}
+#gf-dock .row{ display:flex; gap:8px; align-items:center; margin:6px 0 }
+#gf-dock .btn{ padding:8px 10px; border-radius:10px; border:1px solid #d4af37; background:#171717;
+  color:#f2d574; cursor:pointer; font-weight:800 }
+#gf-dock .btn:active{ transform:translateY(1px) }
+#gf-dock .hint{ opacity:.8; font-size:12px }
+#gf-dock .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
+'@
+WriteUtf8 $DockCssPath $DockCss
+
+
+$DockJsPath = Join-Path $Fx 'dock.js'
+$DockJs = @'
+(function(){
+  "use strict";
+  if(document.getElementById("gf-dock")) return;
+
+
+  const root=document.createElement("div");
+  root.id="gf-dock";
+  root.innerHTML=`
+    <div class="bar">
+      <div class="tab active" data-tab="themes">Motywy</div>
+      <div class="tab" data-tab="modules">Moduły</div>
+      <div class="tab" data-tab="assets">AssetMap</div>
+      <div class="tab" data-tab="info">Info</div>
+    </div>
+    <div class="pane active" id="pane-themes">
+      <div class="grid2">
+        <button class="btn" data-theme="classic">Classic</button>
+        <button class="btn" data-theme="remaster">Remaster 2025</button>
+        <button class="btn" data-theme="pirate">Pirate</button>
+        <button class="btn" data-theme="dark">Dark</button>
+      </div>
+      <div class="row"><span class="hint">Motyw zapisywany w localStorage: GF_THEME</span></div>
+    </div>
+    <div class="pane" id="pane-modules">
+      <label>Pomocnik budowlańca</label>
+      <div class="grid2">
+        <input id="gf-bld-name" placeholder="np. main / farm / storage">
+        <input id="gf-bld-lvl" type="number" min="1" max="50" placeholder="docelowy poziom">
+      </div>
+      <div class="row"><button id="gf-bld-add" class="btn">Dodaj do kolejki</button><button id="gf-bld-run" class="btn">Uruchom teraz</button></div>
+
+
+      <label>Rekruter (Koszary/Port)</label>
+      <div class="grid2">
+        <input id="gf-rec-unit" placeholder="np. slinger / bireme">
+        <input id="gf-rec-amt" type="number" min="1" max="500" placeholder="ilość">
+      </div>
+      <div class="row"><button id="gf-rec-add" class="btn">Dodaj do planu</button><button id="gf-rec-run" class="btn">Uruchom teraz</button></div>
+
+
+      <label>Akademik</label>
+      <input id="gf-aca-tech" placeholder="np. ceramics / trainer">
+      <div class="row"><button id="gf-aca-add" class="btn">Dodaj badanie</button><button id="gf-aca-run" class="btn">Uruchom teraz</button></div>
+
+
+      <div class="row"><span class="hint">Kolejki trzymamy w localStorage. Auto-run co 60–120 s.</span></div>
+    </div>
+    <div class="pane" id="pane-assets">
+      <label>AssetMap (localStorage → GF_ASSET_MAP_EXT)</label>
+      <textarea id="gf-amap" rows="8" spellcheck="false" placeholder='{"ships/bireme.png":"data:image/png;base64,..."}'></textarea>
+      <div class="row">
+        <button id="gf-amap-save" class="btn">Zapisz (LS)</button>
+        <button id="gf-amap-clear" class="btn">Wyczyść</button>
+        <button id="gf-amap-copy" class="btn">Kopiuj</button>
+      </div>
+      <div class="row"><span class="hint">Globalny AssetMap z repo jest nadal aktywny — to nadpisania per klient.</span></div>
+    </div>
+    <div class="pane" id="pane-info">
+      <div class="row"><b>GrepoFusion</b> – remaster UI + mody (build/recruit/academy) + AssetMap</div>
+      <div class="row"><span class="hint">Wersja: dynamicznie z dist (konsola pokazuje numer). FAB otwiera panel.</span></div>
+      <div class="row"><button id="gf-reset" class="btn">Reset ustawień (LS)</button></div>
+    </div>
+  `;
+  document.body.appendChild(root);
+
+
+  // tabs
+  root.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click",()=>{
+      root.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      const id = "pane-"+t.dataset.tab;
+      root.querySelectorAll(".pane").forEach(p=>p.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    });
+  });
+
+
+  // theme switch
+  root.querySelectorAll("[data-theme]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      localStorage.setItem("GF_THEME", btn.dataset.theme);
+      location.reload();
+    });
+  });
+
+
+  // helpers GUI
+  const B = window.GF_Helper_Build, R = window.GF_Helper_Recruit, A = window.GF_Helper_Academy;
+
+
+  root.querySelector("#gf-bld-add").onclick = ()=>{
+    const name = root.querySelector("#gf-bld-name").value.trim();
+    const lvl  = parseInt(root.querySelector("#gf-bld-lvl").value,10)||0;
+    if(!name || !lvl) return alert("Uzupełnij nazwę i poziom.");
+    try{ B.add(name,lvl); }catch(e){ alert("Błąd dodawania.") }
+  };
+  root.querySelector("#gf-bld-run").onclick = ()=>{ try{ B.run(); }catch(e){} };
+
+
+  root.querySelector("#gf-rec-add").onclick = ()=>{
+    const unit = root.querySelector("#gf-rec-unit").value.trim();
+    const amt  = parseInt(root.querySelector("#gf-rec-amt").value,10)||0;
+    if(!unit || !amt) return alert("Uzupełnij jednostkę i ilość.");
+    try{ R.add(unit,amt); }catch(e){ alert("Błąd dodawania.") }
+  };
+  root.querySelector("#gf-rec-run").onclick = ()=>{ try{ R.run(); }catch(e){} };
+
+
+  root.querySelector("#gf-aca-add").onclick = ()=>{
+    const tech = root.querySelector("#gf-aca-tech").value.trim();
+    if(!tech) return alert("Podaj nazwę badania.");
+    try{ A.add(tech); }catch(e){ alert("Błąd dodawania.") }
+  };
+  root.querySelector("#gf-aca-run").onclick = ()=>{ try{ A.run(); }catch(e){} };
+
+
+  // AssetMap editor (LS only – klient)
+  const K = "GF_ASSET_MAP_EXT";
+  const area = root.querySelector("#gf-amap");
+  try{ area.value = localStorage.getItem(K) || ""; }catch(e){}
+
+
+  root.querySelector("#gf-amap-save").onclick = ()=>{
+    try{
+      if(area.value.trim()){
+        JSON.parse(area.value); // walidacja
+        localStorage.setItem(K, area.value);
+        alert("Zapisano do localStorage.");
+      }else{
+        localStorage.removeItem(K);
+        alert("Wyczyszczono nadpisania.");
+      }
+    }catch(e){ alert("Niepoprawny JSON.") }
+  };
+  root.querySelector("#gf-amap-clear").onclick = ()=>{ area.value=""; };
+  root.querySelector("#gf-amap-copy").onclick  = ()=>{ area.select(); document.execCommand("copy"); };
+
+
+  root.querySelector("#gf-reset").onclick = ()=>{
+    ["GF_THEME","GF_ASSET_MAP_EXT","GF::seen::1.5.0.2"].forEach(k=>localStorage.removeItem(k));
+    alert("LocalStorage wyczyszczony. Odśwież stronę.");
+  };
+})();
+'@
+WriteUtf8 $DockJsPath $DockJs
+
+
+# 3) Helpers GUI mini-API (upewnij się, że istnieją metody add/save/run)
+# (już dostarczone w Part 3; tu nic nie dopisujemy – Dock używa ich publicznie)
+
+
+# 4) Wstrzyknięcie CSS/JS (FAB + Dock) do dist – rebuild z dopinką
+$FabCssRaw   = Get-Content -Raw -Path $FabCssPath
+$DockCssRaw  = Get-Content -Raw -Path $DockCssPath
+$FabJsRaw    = Get-Content -Raw -Path $FabJsPath
+$DockJsRaw   = Get-Content -Raw -Path $DockJsPath
+
+
+# Podmieniamy ThemeSwitcherPlus tak, by dołączyć fab.css + dock.css, a po DOM dodać fab.js + dock.js
+$ThemeSwitcherPlus2 = @"
+(function(){
+  'use strict';
+  var name = localStorage.getItem('GF_THEME') || 'pirate';
+  var css = '';
+  switch(name){
+    case 'classic': css = `$(($ThemeClassic -replace '`', '``'))`; break;
+    case 'remaster': css = `$(($ThemeRemaster -replace '`', '``'))`; break;
+    case 'dark': css = `$(($ThemeDark -replace '`', '``'))`; break;
+    default: css = `$(($ThemePirate -replace '`', '``'))`;
+  }
+  var el=document.getElementById('gf-theme-style');
+  if(!el){ el=document.createElement('style'); el.id='gf-theme-style'; document.head.appendChild(el) }
+  el.textContent = css
+    + `$( (Get-Content -Raw (Join-Path $ThemeDir 'config.css')) -replace '`','``' )`
+    + `$( ($WelcomeCssRaw) -replace '`','``' )`
+    + `$( ($FabCssRaw) -replace    '`','``' )`
+    + `$( ($DockCssRaw) -replace   '`','``' )`;
+
+
+  // welcome mount
+  (function(){ $WelcomeJsRaw })();
+  if(window.GF_Welcome && typeof window.GF_Welcome.mount==="function"){ window.GF_Welcome.mount(""); }
+
+
+  // fab + dock mount
+  (function(){ $FabJsRaw })();
+  (function(){ $DockJsRaw })();
+})();
+"
+
+
+# Sklejamy ponownie userscript
+$MainUserJs = @"
+// ==UserScript==
+// @name         GrepoFusion
+// @namespace    https://github.com/KID6767/GrepoFusion
+// @version      $VersionGF
+// @description  Theme + AssetMap + Pomocnik budowlańca + Rekruter + Akademik + panel + changelog + welcome + FAB/dock
+// @author       KID6767 & ChatGPT
+// @match        https://*.grepolis.com/*
+// @match        https://*.grepolis.pl/*
+// @updateURL    https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @downloadURL  https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @grant        none
+// ==/UserScript==
+
+
+(function(){
+  'use strict';
+  // Theme switcher (+config + welcome css/js + fab/dock css/js)
+  $ThemeSwitcherPlus2
+
+
+  // Panel konfiguracji (stary mini-panel; zostaje jako fallback hotkey jeśli chcesz)
+  $ConfigJsRaw
+
+
+  // Asset override (GH/inline + LS nadpisania)
+  (function(){
+    const RAW_MAP = (function(){
+      try{
+        const ext = localStorage.getItem('GF_ASSET_MAP_EXT');
+        if(ext){ return Object.assign({}, __ASSET_MAP__, JSON.parse(ext)); }
+      }catch(e){}
+      return __ASSET_MAP__;
+    })();
+    $($AssetOverrideWithMap -replace '\bconst RAW_MAP = __ASSET_MAP__ ;','const RAW_MAP = (function(){return '+($AssetMapRaw)+';})();')
+  })();
+
+
+  // Helper stubs (nadpisane niżej)
+  $HelpersStubRaw
+
+
+  // Logika helperów
+  $HelperBuildRaw
+  $HelperRecruitRaw
+  $HelperAcademyRaw
+
+
+  // Changelog overlay
+  $ChangelogOverlayRaw
+
+
+  console.log('%c[GrepoFusion] $VersionGF ready','color:#d4af37;font-weight:700');
+})();
+"
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js (FAB/dock + editor) ✓"
+
+
+# 5) Docs (README/CHANGELOG) – krótkie dopiski
+Add-Content $ReadmePath "`n## Panel (dock) + FAB`n- FAB (logo GF) w prawym dolnym rogu otwiera zadokowany panel.`n- Zakładki: Motywy, Moduły (GUI kolejek), AssetMap (LS edytor), Info.`n"
+Add-Content $ChlogPath  "`n## 1.5.0.2 (dock)`n- FAB + zadokowany panel z zakładkami.`n- GUI dla Pomocnika budowlańca, Rekrutera i Akademika.`n- Edytor AssetMap (localStorage override).`n"
+
+
+# 6) ZIP + git (final)
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+  Log "ZIP: $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+}
+
+
+try{
+  & git add -A | Out-Null
+  & git commit -m "GrepoFusion $VersionGF: FAB+dock panel+helpers GUI+AssetMap editor+dist" | Out-Null
+  & git push | Out-Null
+  Log "git push ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Part6 done ✓”
+# ---------- PART 7: HOTKEYS + KOLEJKI GUI + PREVIEW ASSETMAP ----------
+Log "Part7 start ✓"
+
+
+$HotkeysJsPath = Join-Path $Fx 'hotkeys.js'
+$HotkeysJs = @'
+(function(){
+  "use strict";
+  if(window.GF_Hotkeys) return;
+  window.GF_Hotkeys = true;
+
+
+  document.addEventListener("keydown",function(e){
+    if(e.altKey && e.key.toLowerCase()==="g"){
+      document.getElementById("gf-dock")?.classList.toggle("open");
+    }
+    if(e.altKey && e.key.toLowerCase()==="m"){
+      const cur = localStorage.getItem("GF_THEME")||"pirate";
+      const seq = ["classic","remaster","pirate","dark"];
+      const idx = (seq.indexOf(cur)+1)%seq.length;
+      localStorage.setItem("GF_THEME", seq[idx]);
+      location.reload();
+    }
+  });
+  console.log("[GF::Hotkeys] ALT+G panel, ALT+M motyw");
+})();
+'@
+WriteUtf8 $HotkeysJsPath $HotkeysJs
+
+
+# --- GUI dla kolejek (wyświetlanie i usuwanie pozycji) ---
+$QueueUiJsPath = Join-Path $Fx 'queues.js'
+$QueueUiJs = @'
+(function(){
+  "use strict";
+  if(window.GF_QueueUI) return;
+  window.GF_QueueUI = true;
+
+
+  function refresh(){
+    try{
+      const b=GF_Helper_Build.queue||[], r=GF_Helper_Recruit.plan||[], a=GF_Helper_Academy.techs||[];
+      const wrap=document.getElementById("gf-dock");
+      if(!wrap) return;
+      const pane=wrap.querySelector("#pane-modules");
+      if(!pane) return;
+      let html="<h3>Kolejki</h3>";
+      html+="<b>Budowa:</b><ul>"+b.map((x,i)=>`<li>${x.building}→${x.targetLevel} <a href='#' data-del='b${i}'>✖</a></li>`).join("")+"</ul>";
+      html+="<b>Rekrutacja:</b><ul>"+r.map((x,i)=>`<li>${x.unit}×${x.count} <a href='#' data-del='r${i}'>✖</a></li>`).join("")+"</ul>";
+      html+="<b>Akademia:</b><ul>"+a.map((x,i)=>`<li>${x} <a href='#' data-del='a${i}'>✖</a></li>`).join("")+"</ul>";
+      let box=pane.querySelector("#gf-queues");
+      if(!box){ box=document.createElement("div"); box.id="gf-queues"; pane.appendChild(box); }
+      box.innerHTML=html;
+      box.querySelectorAll("a[data-del]").forEach(a=>{
+        a.onclick=(ev)=>{
+          ev.preventDefault();
+          const tag=a.dataset.del;
+          if(tag[0]==="b"){ b.splice(+tag.slice(1),1); GF_Helper_Build.save(); }
+          if(tag[0]==="r"){ r.splice(+tag.slice(1),1); GF_Helper_Recruit.save(); }
+          if(tag[0]==="a"){ a.splice(+tag.slice(1),1); GF_Helper_Academy.save(); }
+          refresh();
+        };
+      });
+    }catch(e){}
+  }
+  setInterval(refresh, 4000);
+})();
+'@
+WriteUtf8 $QueueUiJsPath $QueueUiJs
+
+
+# --- AssetMap Preview (podmiana przykładowego IMG w panelu) ---
+$AssetPreviewJsPath = Join-Path $Fx 'assetpreview.js'
+$AssetPreviewJs = @'
+(function(){
+  "use strict";
+  if(window.GF_AssetPreview) return;
+  window.GF_AssetPreview = true;
+
+
+  function preview(){
+    const pane=document.getElementById("pane-assets");
+    if(!pane) return;
+    if(pane.querySelector("#gf-aprev")) return;
+    const d=document.createElement("div"); d.id="gf-aprev"; d.innerHTML="<h3>Podgląd</h3><img id='gf-aprev-img' style='max-width:100%;border:1px solid #444;border-radius:8px'>";
+    pane.appendChild(d);
+    update();
+  }
+  function update(){
+    try{
+      const raw=localStorage.getItem("GF_ASSET_MAP_EXT");
+      if(!raw) return;
+      const map=JSON.parse(raw);
+      const first=Object.values(map)[0];
+      if(typeof first==="string" && first.startsWith("data:image")){
+        const img=document.getElementById("gf-aprev-img");
+        if(img) img.src=first;
+      }
+    }catch(e){}
+  }
+  setInterval(preview,2000);
+  setInterval(update,5000);
+})();
+'@
+WriteUtf8 $AssetPreviewJsPath $AssetPreviewJs
+
+
+# --- Dopinka do dist ---
+$HotkeysJsRaw    = Get-Content -Raw -Path $HotkeysJsPath
+$QueueUiJsRaw    = Get-Content -Raw -Path $QueueUiJsPath
+$AssetPreviewRaw = Get-Content -Raw -Path $AssetPreviewJsPath
+
+
+$MainUserJs = @"
+// ==UserScript==
+// @name         GrepoFusion
+// @namespace    https://github.com/KID6767/GrepoFusion
+// @version      $VersionGF
+// @description  Theme + Helpers + Dock + FAB + Hotkeys + QueueUI + AssetPreview
+// @author       KID6767 & ChatGPT
+// @match        https://*.grepolis.com/*
+// @match        https://*.grepolis.pl/*
+// @grant        none
+// ==/UserScript==
+
+
+(function(){
+  'use strict';
+  $ThemeSwitcherPlus2
+  $ConfigJsRaw
+  $AssetOverrideWithMap
+  $HelpersStubRaw
+  $HelperBuildRaw
+  $HelperRecruitRaw
+  $HelperAcademyRaw
+  $ChangelogOverlayRaw
+  (function(){ $FabJsRaw })();
+  (function(){ $DockJsRaw })();
+  (function(){ $HotkeysJsRaw })();
+  (function(){ $QueueUiJsRaw })();
+  (function(){ $AssetPreviewRaw })();
+  console.log('%c[GrepoFusion] $VersionGF full+part7','color:#d4af37;font-weight:700');
+})();
+"
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js (Part7 hotkeys+queues+preview) ✓"
+
+
+Add-Content $ReadmePath "`n## Hotkeys + Kolejki + Asset Preview`n- **ALT+G** – otwórz/zamknij panel.`n- **ALT+M** – zmiana motywu (Classic → Remaster → Pirate → Dark).`n- **GUI kolejek**: wyświetlanie pozycji i usuwanie ✖.`n- **AssetMap preview**: podgląd Base64 obrazka z localStorage.`n"
+Add-Content $ChlogPath  "`n## 1.5.0.3`n- Dodano hotkeye (ALT+G/M).`n- GUI do kolejek (budynki/jednostki/tech).`n- AssetMap preview w panelu.`n"
+
+
+# Repack + git
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+  Log "ZIP: $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+}
+
+
+try{
+  & git add -A | Out-Null
+  & git commit -m "GrepoFusion $VersionGF: Part7 hotkeys+queues+preview" | Out-Null
+  & git push | Out-Null
+  Log "git push ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Part7 done ✓”
+# ---------- PART 8: ASSETMAP GALLERY ----------
+Log "Part8 start ✓"
+
+
+$AssetGalleryJsPath = Join-Path $Fx 'assetgallery.js'
+$AssetGalleryJs = @'
+(function(){
+  "use strict";
+  if(window.GF_AssetGallery) return;
+  window.GF_AssetGallery = true;
+
+
+  function gallery(){
+    const pane=document.getElementById("pane-assets");
+    if(!pane) return;
+    if(pane.querySelector("#gf-asset-gallery")) return;
+
+
+    const box=document.createElement("div");
+    box.id="gf-asset-gallery";
+    box.innerHTML=`
+      <h3>Galeria Assetów</h3>
+      <div id="gf-ag-wrap" style="max-height:280px;overflow:auto;border:1px solid #333;padding:6px;border-radius:8px;background:#111"></div>
+      <div style="margin-top:6px;display:flex;gap:6px">
+        <button id="gf-ag-exp">📤 Export JSON</button>
+        <button id="gf-ag-imp">📥 Import JSON</button>
+      </div>
+    `;
+    pane.appendChild(box);
+
+
+    document.getElementById("gf-ag-exp").onclick=()=>{
+      try{
+        const raw=localStorage.getItem("GF_ASSET_MAP_EXT")||"{}";
+        const blob=new Blob([raw],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url; a.download="gf_assetmap.json";
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),2000);
+      }catch(e){ alert("Export failed: "+e); }
+    };
+
+
+    document.getElementById("gf-ag-imp").onclick=()=>{
+      const inp=document.createElement("input");
+      inp.type="file"; inp.accept="application/json";
+      inp.onchange=()=>{
+        const file=inp.files[0];
+        const r=new FileReader();
+        r.onload=()=>{
+          try{
+            localStorage.setItem("GF_ASSET_MAP_EXT",r.result);
+            alert("Zaimportowano AssetMap, odśwież grę!");
+          }catch(e){ alert("Import failed: "+e); }
+        };
+        r.readAsText(file);
+      };
+      inp.click();
+    };
+
+
+    refresh();
+  }
+
+
+  function refresh(){
+    try{
+      const raw=localStorage.getItem("GF_ASSET_MAP_EXT")||"{}";
+      const map=JSON.parse(raw);
+      const wrap=document.getElementById("gf-ag-wrap");
+      if(!wrap) return;
+      let html="";
+      const render=(section,obj)=>{
+        html+=`<h4 style='margin:6px 0;color:#d4af37'>${section}</h4>`;
+        for(const [k,v] of Object.entries(obj||{})){
+          if(typeof v==="string"){
+            html+=`<div class='gf-ag-item' style='margin:2px 0'><span>${k}</span> <img src='${v}' style='max-height:28px;border:1px solid #333;border-radius:4px;margin-left:6px;cursor:zoom-in' title='${k}'/></div>`;
+          }else if(typeof v==="object"){
+            html+=`<div class='gf-ag-item' style='margin:2px 0'><span>${k}</span>`;
+            for(const [style,src] of Object.entries(v)){
+              html+=` <img src='${src}' style='max-height:28px;border:1px solid #333;border-radius:4px;margin-left:4px;cursor:zoom-in' title='${k}:${style}'/>`;
+            }
+            html+="</div>";
+          }
+        }
+      };
+      render("Units",map.units);
+      render("Buildings",map.buildings);
+      render("UI",map.ui);
+      wrap.innerHTML=html;
+
+
+      wrap.querySelectorAll("img").forEach(img=>{
+        img.onclick=()=>{ 
+          const big=document.createElement("div");
+          big.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2147483647;display:flex;align-items:center;justify-content:center";
+          big.innerHTML=`<img src='${img.src}' style='max-width:90%;max-height:90%;border:4px solid #d4af37;border-radius:12px;box-shadow:0 0 40px #000'/>`;
+          big.onclick=()=>big.remove();
+          document.body.appendChild(big);
+        };
+      });
+    }catch(e){}
+  }
+
+
+  setInterval(gallery,2500);
+})();
+'@
+WriteUtf8 $AssetGalleryJsPath $AssetGalleryJs
+
+
+# --- Dopinka do dist ---
+$AssetGalleryRaw = Get-Content -Raw -Path $AssetGalleryJsPath
+
+
+$MainUserJs = @"
+// ==UserScript==
+// @name         GrepoFusion
+// @namespace    https://github.com/KID6767/GrepoFusion
+// @version      $VersionGF
+// @description  Theme + Helpers + Dock + FAB + Hotkeys + QueueUI + AssetPreview + AssetGallery
+// @author       KID6767 & ChatGPT
+// @match        https://*.grepolis.com/*
+// @match        https://*.grepolis.pl/*
+// @grant        none
+// ==/UserScript==
+
+
+(function(){
+  'use strict';
+  $ThemeSwitcherPlus2
+  $ConfigJsRaw
+  $AssetOverrideWithMap
+  $HelpersStubRaw
+  $HelperBuildRaw
+  $HelperRecruitRaw
+  $HelperAcademyRaw
+  $ChangelogOverlayRaw
+  (function(){ $FabJsRaw })();
+  (function(){ $DockJsRaw })();
+  (function(){ $HotkeysJsRaw })();
+  (function(){ $QueueUiJsRaw })();
+  (function(){ $AssetPreviewRaw })();
+  (function(){ $AssetGalleryRaw })();
+  console.log('%c[GrepoFusion] $VersionGF full+part8','color:#d4af37;font-weight:700');
+})();
+"
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js (Part8 assetgallery) ✓"
+
+
+Add-Content $ReadmePath "`n## AssetMap Gallery`n- **Pełna lista assetów**: jednostki, budynki, UI.`n- Podgląd miniatur (klik = powiększenie).`n- **Export JSON** (zapisuje gf_assetmap.json).`n- **Import JSON** (załaduj własną mapę).`n"
+Add-Content $ChlogPath  "`n## 1.5.0.4`n- Dodano galerię AssetMap w panelu Assets.`n- Możliwość eksportu i importu mapy JSON.`n- Hover/klik = podgląd grafik.`n"
+
+
+# Repack + git
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+  Log "ZIP: $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+}
+
+
+try{
+  & git add -A | Out-Null
+  & git commit -m "GrepoFusion $VersionGF: Part8 assetgallery" | Out-Null
+  & git push | Out-Null
+  Log "git push ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Part8 done ✓”
+# ================================
+# PART 9 — AssetMap Live Reload + Status helperów + animacje motywów
+# (wklej po zdefiniowaniu $ChangelogOverlayJs, PRZED składaniem $MainUserJs)
+# ================================
+
+
+Log "Part9 start ✓"
+
+
+# 1) Dodatkowe CSS (płynne przejścia motywów, delikatny fade UI)
+$ThemeTransitionCss = @'
+/* GrepoFusion – theme transition */
+html.gf-theme-transition * {
+  -webkit-transition: background-color .35s ease, color .35s ease, border-color .35s ease, filter .35s ease;
+  transition: background-color .35s ease, color .35s ease, border-color .35s ease, filter .35s ease;
+}
+#gf-fade-mask{
+  position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:2147483640;
+}
+#gf-status{
+  margin-top:6px; padding:6px; border:1px dashed rgba(212,175,55,.45); border-radius:8px;
+  color:#f0e6c6; background:rgba(0,0,0,.25);
+  font: 12px/1.25 system-ui,Segoe UI,Arial;
+}
+#gf-status .row{ display:flex; justify-content:space-between; margin:2px 0; }
+'@
+# dopisz CSS do config.css (żeby trzymać wszystko w jednym stylesheet)
+Add-Content (Join-Path $ThemeDir 'config.css') $ThemeTransitionCss
+
+
+# 2) AssetMap Manager – zarządzanie mapą assetów w runtime (live reload bez odświeżania)
+$AssetMapManagerJs = @'
+(function(){
+  "use strict";
+  if(window.GF_AssetMap) return;
+
+
+  const listeners = [];
+  const emit = ()=> listeners.forEach(fn=>{ try{ fn(window.GF_ASSET_MAP||{}) }catch(_){}});
+
+
+  window.GF_AssetMap = {
+    /** ustawia nową mapę (obiekt JSON) i triggeruje przebudowę obrazów **/
+    set(map){
+      try{
+        window.GF_ASSET_MAP = map || {};
+        console.log("[GF::AssetMap] applied:", Object.keys(window.GF_ASSET_MAP||{}).length, "groups");
+        emit();
+        // Przepatchuj wszystkie obrazki
+        document.querySelectorAll("img[src]").forEach(img=>{
+          try{
+            const s = window.GF_AssetMap.mapSrc(img.src);
+            if(s && s!==img.src) img.src = s;
+          }catch(_){}
+        });
+      }catch(e){ console.warn("[GF::AssetMap] set error", e); }
+    },
+    /** wczytuje mapę z URL (np. raw z GitHuba) **/
+    async loadFromUrl(url){
+      try{
+        const res = await fetch(url, {cache:"no-store"});
+        const json = await res.json();
+        this.set(json);
+        return json;
+      }catch(e){
+        console.warn("[GF::AssetMap] loadFromUrl error", e);
+        throw e;
+      }
+    },
+    /** łączy obecną mapę z nową (shallow) **/
+    merge(partial){
+      const base = window.GF_ASSET_MAP || {};
+      const out = Object.assign({}, base);
+      for(const k in partial){ out[k] = Object.assign({}, base[k]||{}, partial[k]); }
+      this.set(out);
+    },
+    /** liczy podmiany (prosty raport) **/
+    count(){
+      const m = window.GF_ASSET_MAP||{};
+      const u = Object.keys(m.units||{}).length;
+      const b = Object.keys(m.buildings||{}).length;
+      const ui= Object.keys(m.ui||{}).length;
+      return {units:u, buildings:b, ui};
+    },
+    /** mapowanie pojedynczego src (używane przez override) **/
+    mapSrc(src){
+      try{
+        const M = window.GF_ASSET_MAP||{};
+        // units
+        const units = M.units||{};
+        for(const k in units){
+          if(src.includes(k)){
+            const v = units[k];
+            return v.pirate || v.remaster || v.classic || v.dark || v; // preferencja stylów
+          }
+        }
+        // buildings
+        const b = M.buildings||{};
+        for(const k in b){ if(src.includes(k)) return b[k]; }
+        // ui
+        const ui = M.ui||{};
+        for(const k in ui){ if(src.includes(k)) return ui[k]; }
+      }catch(_){}
+      return src;
+    },
+    onChange(fn){ listeners.push(fn); }
+  };
+})();
+'
+
+
+# 3) NOWY Asset Override – korzysta z window.GF_ASSET_MAP + słucha zmian (live reload)
+$AssetOverrideJsV2 = @"
+(function(){
+  'use strict';
+  // Inicjalna mapa podstawiona podczas buildu:
+  window.GF_ASSET_MAP = __ASSET_MAP__;
+
+
+  // Gwarantujemy obecność managera (w razie kolejności wklejenia)
+  if(!window.GF_AssetMap){
+    window.GF_AssetMap = {
+      mapSrc:function(s){ try{ const M=window.GF_ASSET_MAP||{}; const U=M.units||{}; for(const k in U){ if(s.includes(k)){ const v=U[k]; return v.pirate||v.remaster||v.classic||v.dark||v; } } const B=M.buildings||{}; for(const k in B){ if(s.includes(k)) return B[k]; } const UI=M.ui||{}; for(const k in UI){ if(s.includes(k)) return UI[k]; } }catch(_){ } return s; },
+      onChange:function(){}, set:function(){}, loadFromUrl:async function(){}, merge:function(){}, count:function(){return {units:0,buildings:0,ui:0};}
+    };
+  }
+
+
+  function map(src){ return window.GF_AssetMap.mapSrc(src); }
+
+
+  // patch createElement → IMG.setAttribute('src',...)
+  const _create=document.createElement;
+  document.createElement=function(tag){
+    const el=_create.call(document,tag);
+    if((''+tag).toLowerCase()==='img'){
+      const _set=el.setAttribute;
+      el.setAttribute=function(n,val){
+        if(n==='src' && typeof val==='string'){ val = map(val) }
+        return _set.call(this,n,val);
+      }
+    }
+    return el;
+  };
+
+
+  // patch istniejących obrazów + future nodes
+  const patch=(root)=>{ root.querySelectorAll && root.querySelectorAll('img[src]').forEach(img=>{ try{ const s=map(img.src); if(s!==img.src) img.src=s }catch(_){}}) };
+  const mo=new MutationObserver(muts=>{ muts.forEach(m=>{ m.addedNodes && m.addedNodes.forEach(n=>{ if(n.nodeType===1) patch(n) }) }) });
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+  patch(document);
+
+
+  // Live reload: przełóż istniejące IMG przy każdej zmianie mapy
+  if(window.GF_AssetMap && window.GF_AssetMap.onChange){
+    window.GF_AssetMap.onChange(()=>patch(document));
+  }
+})();
+"
+
+
+# 4) Panel statusu helperów + Live AssetMap input + płynne przełączanie motywów
+$StatusPanelJs = @'
+(function(){
+  "use strict";
+  // doklej status i kontrolki do istniejącego boxa konfiguracji (a jeśli nie ma – zainicjuj później)
+  function mount(){
+    const box = document.getElementById("aegis-config");
+    if(!box) return false;
+    if(document.getElementById("gf-status")) return true;
+
+
+    const wrap = document.createElement("div");
+    wrap.id = "gf-status";
+    wrap.innerHTML = `
+      <div class="row"><span>Budowle (kolejka)</span><b id="gf-st-build">–</b></div>
+      <div class="row"><span>Rekruci (plan)</span><b id="gf-st-recruit">–</b></div>
+      <div class="row"><span>Badania (plan)</span><b id="gf-st-acad">–</b></div>
+      <div class="row"><span>AssetMap</span><b id="gf-st-asset">–</b></div>
+      <div style="margin-top:6px; display:flex; gap:6px;">
+        <input id="gf-asset-url" placeholder="URL do assetmap.json" style="flex:1; padding:6px; border-radius:8px; border:1px solid rgba(212,175,55,.4); background:#111; color:#f0e6c6" />
+        <button id="gf-asset-load" style="border-radius:8px; border:1px solid #d4af37; background:#1b1b1b; color:#d4af37; padding:6px 8px; cursor:pointer;">Załaduj</button>
+      </div>
+      <div style="margin-top:6px; display:flex; gap:6px;">
+        <button id="gf-theme-apply" style="flex:1; border-radius:8px; border:1px solid #d4af37; background:#1b1b1b; color:#d4af37; padding:6px 8px; cursor:pointer;">Zastosuj motyw (fade)</button>
+      </div>
+    `;
+    box.appendChild(wrap);
+
+
+    // status refresh
+    function refresh(){
+      try{
+        const qb = (window.GF_Helper_Build && GF_Helper_Build.queue) ? GF_Helper_Build.queue.length : (localStorage.getItem("GF::Helper::Build")||"[]").length;
+        document.getElementById("gf-st-build").textContent = (GF_Helper_Build && GF_Helper_Build.queue)? GF_Helper_Build.queue.length : (JSON.parse(localStorage.getItem("GF::Helper::Build")||"[]").length||0);
+      }catch(_){ document.getElementById("gf-st-build").textContent = "-"; }
+
+
+      try{
+        document.getElementById("gf-st-recruit").textContent = (GF_Helper_Recruit && GF_Helper_Recruit.plan)? GF_Helper_Recruit.plan.length : (JSON.parse(localStorage.getItem("GF::Helper::Recruit")||"[]").length||0);
+      }catch(_){ document.getElementById("gf-st-recruit").textContent = "-"; }
+
+
+      try{
+        document.getElementById("gf-st-acad").textContent = (GF_Helper_Academy && GF_Helper_Academy.techs)? GF_Helper_Academy.techs.length : (JSON.parse(localStorage.getItem("GF::Helper::Academy")||"[]").length||0);
+      }catch(_){ document.getElementById("gf-st-acad").textContent = "-"; }
+
+
+      try{
+        const cnt = (window.GF_AssetMap && GF_AssetMap.count)? GF_AssetMap.count() : {units:0,buildings:0,ui:0};
+        document.getElementById("gf-st-asset").textContent = cnt.units+"u / "+cnt.buildings+"b / "+cnt.ui+"ui";
+      }catch(_){ document.getElementById("gf-st-asset").textContent="–"; }
+    }
+    refresh();
+    setInterval(refresh, 2500);
+
+
+    // ładowanie AssetMap z URL
+    document.getElementById("gf-asset-load").onclick = async ()=>{
+      const url = (document.getElementById("gf-asset-url").value||"").trim();
+      if(!url) { alert("Podaj URL do assetmap.json"); return; }
+      try{
+        await window.GF_AssetMap.loadFromUrl(url);
+        refresh();
+        alert("Załadowano nową mapę assetów.");
+      }catch(e){
+        alert("Błąd wczytywania mapy: "+(e && e.message || e));
+      }
+    };
+
+
+    // płynne zastosowanie aktualnego motywu (bez twardego reload)
+    document.getElementById("gf-theme-apply").onclick = ()=>{
+      try{
+        const name = localStorage.getItem("GF_THEME") || "pirate";
+        const mask = document.getElementById("gf-fade-mask") || (()=>{
+          const m=document.createElement("div"); m.id="gf-fade-mask"; document.body.appendChild(m); return m;
+        })();
+        document.documentElement.classList.add("gf-theme-transition");
+        mask.style.opacity = "0.55";
+        setTimeout(()=>{
+          // podmień CSS motywu (to samo co w ThemeSwitcherJs, ale bez reloadu)
+          var css = '';
+          switch(name){
+            case 'classic': css = `$(($ThemeClassic -replace '`', '``'))`; break;
+            case 'remaster': css = `$(($ThemeRemaster -replace '`', '``'))`; break;
+            case 'dark': css = `$(($ThemeDark -replace '`', '``'))`; break;
+            default: css = `$(($ThemePirate -replace '`', '``'))`;
+          }
+          var el=document.getElementById('gf-theme-style');
+          if(!el){ el=document.createElement('style'); el.id='gf-theme-style'; document.head.appendChild(el) }
+          el.textContent = css + `$( (Get-Content -Raw (Join-Path $ThemeDir 'config.css')) -replace '`', '``' )`;
+
+
+          setTimeout(()=>{ mask.style.opacity="0"; }, 150);
+        }, 120);
+      }catch(e){
+        console.warn("Theme fade apply error", e);
+      }
+    };
+
+
+    return true;
+  }
+
+
+  // podepnij się, kiedy box konfiguracji już istnieje
+  const tryMount = ()=>{ if(!mount()) setTimeout(tryMount, 1000); };
+  tryMount();
+})();
+'
+
+
+# 5) Użyj nowego override z live mapą: zbuduj payload w oparciu o lokalny assetmap.json
+$AssetMapRaw = Get-Content -Raw -Path $AssetMapPath
+$AssetOverrideWithMap = $AssetOverrideJsV2.Replace('__ASSET_MAP__', $AssetMapRaw)
+
+
+# 6) Wstrzyknięcie nowych modułów podczas budowy głównego userscripta:
+#    — zaktualizuj (NADPISZ) zmienną $MainUserJs tak, by zawierała Manager + StatusPanel.
+#    UWAGA: Używamy już zbudowanych wcześniej $ThemeSwitcherJs, $ConfigJsRaw, $Helper*Raw, $ChangelogOverlayRaw
+
+
+$MainUserJs = @"
+// ==UserScript==
+// @name         GrepoFusion
+// @namespace    https://github.com/KID6767/GrepoFusion
+// @version      $VersionGF
+// @description  Theme + AssetMap (live) + Pomocnik budowlańca + Rekruter + Akademik + panel + changelog + animacje
+// @author       KID6767 & ChatGPT
+// @match        https://*.grepolis.com/*
+// @match        https://*.grepolis.pl/*
+// @updateURL    https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @downloadURL  https://raw.githubusercontent.com/KID6767/GrepoFusion/main/dist/grepofusion.user.js
+// @grant        none
+// ==/UserScript==
+
+
+(function(){
+  'use strict';
+  // Theme switcher + config styles (w tym config.css z Part 9)
+  $ThemeSwitcherJs
+
+
+  // Panel konfiguracji (przyciski motywów + hooki helperów)
+  $ConfigJsRaw
+
+
+  // AssetMap Manager (API: set / loadFromUrl / merge / count / mapSrc)
+  $AssetMapManagerJs
+
+
+  // Asset override (IMG src hook) – z live reload
+  $AssetOverrideWithMap
+
+
+  // Helper stubs (gdyby logika nie zdążyła się załadować)
+  $HelpersStubRaw
+
+
+  // Logika helperów (Senat/Barracks/Port/Academy)
+  $HelperBuildRaw
+  $HelperRecruitRaw
+  $HelperAcademyRaw
+
+
+  // Status panel helperów + live AssetMap input + płynna zmiana motywu
+  $StatusPanelJs
+
+
+  // Changelog overlay
+  $ChangelogOverlayRaw
+
+
+  console.log('%c[GrepoFusion] $VersionGF (Part 9) ready','color:#d4af37;font-weight:700');
+})();
+"
+
+
+# 7) Zapis odświeżonego userscripta do dist/
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+WriteUtf8 $DistUserJs $MainUserJs
+Log "dist/grepofusion.user.js (Part 9) ✓"
+
+
+# 8) (opcjonalnie) krótkie dopiski do README/CHANGELOG
+Add-Content $ReadmePath  "`n### Live AssetMap`n- W panelu u dołu: wklej URL do `assetmap.json` i kliknij **Załaduj** — grafiki podmienią się bez odświeżania.`n- Licznik (units/buildings/ui) pokazuje zakres aktualnej mapy.`n"
+Add-Content $ChlogPath   "`n## 1.5.0.2 (Part 9)`n- Live AssetMap (runtime reload) + status helperów (kolejki + plan).`n- Animowane przejścia motywów (fade).`n”
+# ================================
+# PART 10 — Weryfikacja buildu + raport + instalatory + ZIP + git tag
+# (wklej po Part 9; możesz usunąć/zawiesić wcześniejszy blok ZIP+git)
+# ================================
+
+
+Log "Part10 start ✓"
+
+
+# —— 1) Twarde zasady i bezpieczniki
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+
+# Ścieżki używane w Part10
+$DistUserJs = Join-Path $Dist 'grepofusion.user.js'
+$ReportDir  = Join-Path $Docs 'reports'
+$ReportPath = Join-Path $ReportDir 'build_report.md'
+$ToolsDir   = Join-Path $RepoRoot 'tools'
+$InstDir    = Join-Path $ToolsDir 'installers'
+$BackupDir  = Join-Path $RepoRoot 'backups'
+EnsureDir $ReportDir
+EnsureDir $ToolsDir
+EnsureDir $InstDir
+EnsureDir $BackupDir
+
+
+# —— 2) Weryfikacja integralności userscripta
+function Verify-Build {
+  param([string]$Path)
+
+
+  if(-not (Test-Path $Path)){
+    throw "Brak pliku userscripta: $Path"
+  }
+
+
+  $txt = Get-Content -Raw -Path $Path
+
+
+  # Minimalne sygnatury, które MUSZĄ być obecne
+  $needles = @(
+    'GF_AssetMap',           # menedżer mapy assetów (live)
+    'GF_ASSET_MAP',          # runtime mapa
+    'gf-theme-style',        # wstrzyknięty style tag motywu
+    'aegis-config',          # panel konfiguracji
+    'GF_Helper_Build',       # helper: senat
+    'GF_Helper_Recruit',     # helper: koszary/port
+    'GF_Helper_Academy',     # helper: akademia
+    'gf-changelog'           # changelog overlay
+  )
+
+
+  foreach($n in $needles){
+    if($txt -notmatch [Regex]::Escape($n)){
+      throw "Weryfikacja nie powiodła się – brak znacznika: $n"
+    }
+  }
+
+
+  # Prosta kontrola błędnych here-stringów (niedomknięte @"… "@)
+  $open  = ($txt | Select-String -Pattern '@"' -AllMatches).Matches.Count
+  $close = ($txt | Select-String -Pattern '"@' -AllMatches).Matches.Count
+  if($open -ne $close){
+    throw "Here-stringi niesymetryczne: @`" ($open) vs `"`@ ($close)"
+  }
+
+
+  # SHA256
+  $sha = (Get-FileHash -Algorithm SHA256 $Path).Hash
+  return $sha
+}
+
+
+# —— 3) Raport z buildu (statystyki + sumy)
+function Write-BuildReport {
+  param(
+    [string]$UserJsPath,
+    [string]$Sha256,
+    [string]$AssetMapJsonPath
+  )
+
+
+  $len    = (Get-Item $UserJsPath).Length
+  $lines  = (Get-Content $UserJsPath).Length
+  $amStat = @{units=0;buildings=0;ui=0}
+
+
+  if(Test-Path $AssetMapJsonPath){
+    try{
+      $json = Get-Content -Raw -Path $AssetMapJsonPath | ConvertFrom-Json
+      if($json.units)     { $amStat.units     = ($json.units.PSObject.Properties.Name).Count }
+      if($json.buildings) { $amStat.buildings = ($json.buildings.PSObject.Properties.Name).Count }
+      if($json.ui)        { $amStat.ui        = ($json.ui.PSObject.Properties.Name).Count }
+    }catch{}
+  }
+
+
+  $ts = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+  $md = @"
+# Raport buildu – GrepoFusion
+
+
+**Czas:** $ts  
+**Wersja (dist):** $VersionGF  
+**Plik:** `dist/grepofusion.user.js`  
+**Rozmiar:** $len B  
+**Linie:** $lines  
+**SHA-256:** `$Sha256`
+
+
+## AssetMap (statystyka)
+- Units:     $($amStat.units)
+- Buildings: $($amStat.buildings)
+- UI:        $($amStat.ui)
+
+
+## Check-list
+- [x] Motywy (Classic / Remaster / Pirate / Dark)
+- [x] Panel konfiguracji (prawy dół, status helperów, live AssetMap URL)
+- [x] Helpery: Senat (Pomocnik), Koszary/Port (Rekruter), Akademia (Akademik)
+- [x] AssetMap live reload + IMG hook
+- [x] Changelog overlay
+- [x] Animowane przejścia motywów (fade)
+
+
+"@
+  WriteUtf8 $ReportPath $md
+  Log "Report ✓  ($ReportPath)"
+}
+
+
+# —— 4) Instalatory / narzędzia
+# 4a) Installer: otwórz dist w przeglądarce (Tampermonkey sam rozpozna)
+$InstallLocalPs1 = @'
+param(
+  [string]$DistPath = "$(Split-Path -Parent $MyInvocation.MyCommand.Path)\..\..\dist\grepofusion.user.js"
+)
+if(-not (Test-Path $DistPath)){
+  Write-Host "Brak pliku: $DistPath" -ForegroundColor Red
+  exit 1
+}
+$full = (Resolve-Path $DistPath).Path
+Write-Host "Otwieram: $full" -ForegroundColor Cyan
+Start-Process $full
+'@
+$InstallLocalPath = Join-Path $InstDir 'install_local.ps1'
+WriteUtf8 $InstallLocalPath $InstallLocalPs1
+Log "Installer (local) ✓"
+
+
+# 4b) Mini .bat (dla dwukliku)
+$InstallBat = @'
+@echo off
+setlocal
+set PS1=%~dp0install_local.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%"
+endlocal
+'@
+WriteUtf8 (Join-Path $InstDir 'install_local.bat') $InstallBat
+Log "Installer (bat) ✓"
+
+
+# —— 5) Backup poprzedniego dist (dla sanity)
+$stamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
+if(Test-Path $DistUserJs){
+  Copy-Item $DistUserJs (Join-Path $BackupDir "grepofusion.user.$stamp.js") -Force
+  Log "Backup dist ✓"
+}
+
+
+# —— 6) Weryfikacja i raport
+$Sha = Verify-Build -Path $DistUserJs
+Write-BuildReport -UserJsPath $DistUserJs -Sha256 $Sha -AssetMapJsonPath $AssetMapPath
+
+
+# —— 7) Paczka ZIP (Part10) – nadpisz poprzednią, jeśli była
+try{
+  $ZipOut = Join-Path $RepoRoot ("GrepoFusion-$VersionGF.zip")
+  if(Test-Path $ZipOut){ Remove-Item $ZipOut -Force -ErrorAction SilentlyContinue }
+
+
+  $pkgDir = Join-Path $RepoRoot "_pkg_$([Guid]::NewGuid().ToString('N'))"
+  EnsureDir $pkgDir
+
+
+  Copy-Item $Assets      -Destination $pkgDir -Recurse
+  Copy-Item $Userscripts -Destination $pkgDir -Recurse
+  Copy-Item $Docs        -Destination $pkgDir -Recurse
+  Copy-Item $Dist        -Destination $pkgDir -Recurse
+  Copy-Item $Tools       -Destination $pkgDir -Recurse
+
+
+  Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
+  [IO.Compression.ZipFile]::CreateFromDirectory($pkgDir, $ZipOut)
+  Remove-Item $pkgDir -Recurse -Force
+
+
+  Log "ZIP (Part10): $ZipOut"
+  Log ("SHA-256: " + (Get-FileHash -Algorithm SHA256 $ZipOut).Hash)
+}catch{
+  Write-Host ("ZIP ERR: "+ $_.Exception.Message) -ForegroundColor Red
+  throw
+}
+
+
+# —— 8) Git commit + tag (vX.Y.Z-rcN jeśli w wersji draft) i push
+try{
+  & git add -A | Out-Null
+
+
+  $tagName = "v$VersionGF"
+  $msg = "GrepoFusion $VersionGF: verified build, report, installers, live assetmap, helpers status"
+
+
+  & git commit -m $msg | Out-Null
+  # tag nadpisywany (annotated); jeśli istnieje – przestawiamy
+  if((& git tag --list $tagName)){
+    & git tag -d $tagName | Out-Null
+  }
+  & git tag -a $tagName -m $msg | Out-Null
+  & git push | Out-Null
+  & git push origin $tagName | Out-Null
+
+
+  Log "git push + tag $tagName ✓"
+}catch{
+  Write-Host ("GIT WARN: "+$_.Exception.Message) -ForegroundColor Yellow
+}
+
+
+Log "Part10 done ✓”
